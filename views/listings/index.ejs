@@ -1,0 +1,72 @@
+<% layout("/layouts/boilerplate") %>
+
+
+    <body>
+        <!-- <h3>All Listings</h3> -->
+
+        <!-- Button to create new listing -->
+        <!-- <form method="GET" action="/listings/new">
+        <button type="submit">Create New Listing</button>
+    </form> -->
+
+
+
+   <style>
+  
+</style>
+
+<div class="search-wrapper">
+  <form class="airbnb-search" method="GET" action="/listings/search">
+    <div class="search-segment">
+      <label>Where</label>
+      <input type="text" name="location" placeholder="Search destinations">
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="search-segment">
+      <label>When</label>
+      <input type="text" name="dates" placeholder="Add dates">
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="search-segment">
+      <label>Who</label>
+      <input type="text" name="guests" placeholder="Add guests">
+    </div>
+
+    <button class="btn-search" type="submit">
+      <i class="fa-solid fa-magnifying-glass"></i>
+    </button>
+  </form>
+</div>
+
+        <div class="row row-cols-lg-3 row-cols-md-3 row-cols-sm-1 mt-3">
+            <% for (let listing of allListings) { %>
+                <a href="/listings/<%= listing._id %>" class="listing-link">
+                    <div class="card col">
+                        <img src="<%= listing.image.url %>" 
+                        style="height: 20rem;"
+                         class="card-img-top" 
+                         alt="listing_image">
+
+                        <div class="card-img-overlay"></div>
+                        <div class="card-body">
+                            <p class="card-text">
+                                <b> <%= listing.title %> </b> <br>
+                                &#8377; <%= listing.price ? listing.price.toLocaleString("en-IN") : "N/A" %>
+                             </p>
+                             
+                        </div>
+                    </div>
+                </a>
+                <% } %>
+
+        </div>
+
+
+
+
+
+    </body>
