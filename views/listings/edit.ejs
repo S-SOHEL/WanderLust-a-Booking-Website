@@ -140,6 +140,7 @@
             <% } %>
           </div>
 
+          <input type="hidden" name="listing[coordinatesModified]" id="coordinatesModified" value="false">
           <div class="row g-2">
             <div class="col-12 col-md-6">
               <label for="latitude" class="form-label small fw-semibold text-muted mb-1">Latitude (-90 to 90)</label>
@@ -303,10 +304,16 @@
         .setLngLat(initialCenter)
         .addTo(pickerMap);
 
+      const coordsModifiedInput = document.getElementById("coordinatesModified");
+      function markCoordsModified() {
+        if (coordsModifiedInput) coordsModifiedInput.value = "true";
+      }
+
       function updateInputs(lngLat) {
         if (!lngLat) return;
         lngInput.value = (typeof lngLat.lng === "number" ? lngLat.lng : lngLat[0]).toFixed(6);
         latInput.value = (typeof lngLat.lat === "number" ? lngLat.lat : lngLat[1]).toFixed(6);
+        markCoordsModified();
       }
 
       marker.on("dragend", () => {
@@ -320,6 +327,7 @@
       });
 
       function syncMarkerFromInputs() {
+        markCoordsModified();
         const lat = parseFloat(latInput.value);
         const lng = parseFloat(lngInput.value);
         if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
@@ -362,6 +370,14 @@
 
       pickerMap.on("load", () => {
         pickerMap.resize();
+      });
+
+      window.addEventListener("resize", () => {
+        pickerMap.resize();
+      });
+
+      pickerMap.on("error", (e) => {
+        console.warn("Mapbox edit pin picker notice:", e);
       });
     } catch (e) {
       console.warn("Mapbox pin picker init warning:", e);

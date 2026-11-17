@@ -25,7 +25,9 @@ if (hasCloudinary) {
     storage = new CloudinaryStorage({
       cloudinary: cloudinary,
       params: {
-        folder: "wanderlust_DEV",
+        folder:
+          process.env.CLOUDINARY_FOLDER ||
+          (process.env.NODE_ENV === "production" ? "wanderlust_PROD" : "wanderlust_DEV"),
         allowed_formats: ["png", "jpg", "jpeg", "webp"],
       },
     });

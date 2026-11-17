@@ -24,38 +24,71 @@ const bookingRouter = require("./routes/booking.js");
 const adminRouter = require("./routes/admin.js");
 const aiRouter = require("./routes/ai.js");
 
-const MONGO_URL = "mongodb://127.0.0.1:27017/wanderlust";
+const LOCAL_MONGO_URL = "mongodb://127.0.0.1:27017/wanderlust";
+const isProduction = process.env.NODE_ENV === "production";
 
-let dbUrl = process.env.MONGO_URL || MONGO_URL;
-if (process.env.NODE_ENV === "production" || process.env.USE_ATLAS === "true") {
-  if (!process.env.ATLASDB_URL) {
-    if (process.env.NODE_ENV === "production") {
-      console.error("FATAL CONFIG ERROR: ATLASDB_URL is required in production environment.");
+function resolveDatabaseConfig() {
+  if (isProduction) {
+    if (!process.env.ATLASDB_URL || !process.env.ATLASDB_URL.trim()) {
+      console.error("FATAL CONFIG ERROR: ATLASDB_URL is required when NODE_ENV=production.");
       process.exit(1);
     }
-    console.warn("WARNING: USE_ATLAS=true but ATLASDB_URL is not set; falling back to local MongoDB.");
-  } else {
-    dbUrl = process.env.ATLASDB_URL;
+    return { url: process.env.ATLASDB_URL.trim(), label: "MongoDB Atlas (Production)" };
   }
+
+  // Non-production: prefer dedicated cloud development DB if explicitly configured
+  const devAtlasUrl = process.env.DEV_ATLASDB_URL ? process.env.DEV_ATLASDB_URL.trim() : "";
+  if (devAtlasUrl && process.env.USE_CLOUD_DEV !== "false") {
+    const prodAtlasUrl = process.env.ATLASDB_URL ? process.env.ATLASDB_URL.trim() : "";
+    if (prodAtlasUrl && devAtlasUrl === prodAtlasUrl) {
+      console.error("FATAL CONFIG ERROR: DEV_ATLASDB_URL must not match production ATLASDB_URL.");
+      process.exit(1);
+    }
+    return { url: devAtlasUrl, label: "MongoDB Atlas (Cloud Development)" };
+  }
+
+  const localUrl = (process.env.MONGO_URL || LOCAL_MONGO_URL).trim();
+  return {
+    url: localUrl,
+    label: localUrl.includes("127.0.0.1") || localUrl.includes("localhost")
+      ? "Local MongoDB (localhost:27017)"
+      : "Configured Development MongoDB",
+  };
 }
 
-main()
-  .then(() => {
-    console.log(
-      "connected to DB:",
-      dbUrl.includes("127.0.0.1") ? "Local MongoDB (localhost:27017)" : "MongoDB Atlas"
-    );
+const dbConfig = resolveDatabaseConfig();
+const dbUrl = dbConfig.url;
+
+mongoose.connection.on("error", (err) => {
+  console.error("MongoDB Runtime Connection Error:", err.message);
+});
+
+mongoose.connection.on("disconnected", () => {
+  console.warn("MongoDB connection lost.");
+});
+
+// Single shared connection promise reused by both Mongoose and connect-mongo (no duplicate pools)
+const dbConnectionPromise = mongoose.connect(dbUrl);
+
+dbConnectionPromise
+  .then((m) => {
+    console.log(`Connected to DB: ${dbConfig.label} [database: ${m.connection.name}]`);
+    // Start background schedulers and admin reconciliation only after DB is connected
+    const { startBookingLifecycleScheduler } = require("./utils/bookingLifecycle.js");
+    startBookingLifecycleScheduler(15 * 60 * 1000);
+
+    const { reconcilePrimaryAdmin } = require("./utils/adminReconcile.js");
+    reconcilePrimaryAdmin();
   })
   .catch((err) => {
-    console.log("DB Connection Error:", err);
+    console.error("DB Initial Connection Error:", err.message);
+    if (isProduction) {
+      process.exit(1);
+    }
   });
 
-async function main() {
-  await mongoose.connect(dbUrl);
-}
-
 // Enable trust proxy for secure cookies behind reverse proxies (e.g. Render / Heroku)
-if (process.env.NODE_ENV === "production") {
+if (isProduction) {
   app.set("trust proxy", 1);
 }
 
@@ -68,9 +101,9 @@ app.engine("ejs", ejsMate);
 app.use(express.static(path.join(__dirname, "/public")));
 app.use("/uploads", express.static(path.join(__dirname, "/uploads")));
 
-// MongoDB session store
+// MongoDB session store sharing the primary Mongoose client (no duplicate MongoClient connections)
 const store = MongoStore.create({
-  mongoUrl: dbUrl,
+  clientPromise: dbConnectionPromise.then((m) => m.connection.getClient()),
   crypto: {
     secret: process.env.SECRET || "mysupersecretcode",
   },
@@ -78,7 +111,7 @@ const store = MongoStore.create({
 });
 
 store.on("error", (err) => {
-  console.log("Session Store Error:", err);
+  console.error("Session Store Error:", err.message);
 });
 
 const sessionOptions = {
@@ -91,7 +124,7 @@ const sessionOptions = {
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: isProduction,
   },
 };
 
@@ -135,14 +168,6 @@ passport.use(
 
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
-
-// Auto-transition past checkout bookings to Completed via background scheduler
-const { startBookingLifecycleScheduler } = require("./utils/bookingLifecycle.js");
-startBookingLifecycleScheduler(15 * 60 * 1000);
-
-// Reconcile primary platform administrator
-const { reconcilePrimaryAdmin } = require("./utils/adminReconcile.js");
-reconcilePrimaryAdmin();
 
 // Global template locals (auth, flash messages, admin pending badges)
 app.use(async (req, res, next) => {

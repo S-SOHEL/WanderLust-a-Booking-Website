@@ -370,6 +370,14 @@
       pickerMap.on("load", () => {
         pickerMap.resize();
       });
+
+      window.addEventListener("resize", () => {
+        pickerMap.resize();
+      });
+
+      pickerMap.on("error", (e) => {
+        console.warn("Mapbox new pin picker notice:", e);
+      });
     } catch (e) {
       console.warn("Mapbox pin picker init warning:", e);
     }

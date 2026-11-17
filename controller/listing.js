@@ -199,7 +199,12 @@ module.exports.showListing = async (req, res) => {
   }
 
   // If listing is unpublished or not approved, only admin or owner can view it
-  if (listing.isPublished === false || listing.status === "pending" || listing.status === "rejected") {
+  if (
+    listing.isPublished === false ||
+    listing.status === "pending" ||
+    listing.status === "rejected" ||
+    listing.status === "draft"
+  ) {
     const isOwner = req.user && listing.owner && listing.owner._id.equals(req.user._id);
     const isAdmin = req.user && req.user.role === "admin";
     if (!isOwner && !isAdmin) {
@@ -420,16 +425,34 @@ module.exports.updateListing = async (req, res) => {
     amenities = Array.isArray(req.body.amenities) ? req.body.amenities : [req.body.amenities];
   }
 
-  // Handle coordinates: Check manual coordinates first
+  // Handle coordinates: Distinguish explicit pin/coordinate edits from untouched pre-filled edit values
   const manualLng = req.body.listing?.longitude !== undefined ? req.body.listing.longitude : req.body.longitude;
   const manualLat = req.body.listing?.latitude !== undefined ? req.body.listing.latitude : req.body.latitude;
   const manualCoords = parseAndValidateCoordinates(manualLng, manualLat);
+  const coordsModifiedFlag = String(req.body.listing?.coordinatesModified || "").toLowerCase() === "true";
 
-  if (manualCoords) {
+  const existingCoords =
+    listing.geometry &&
+    Array.isArray(listing.geometry.coordinates) &&
+    listing.geometry.coordinates.length === 2
+      ? listing.geometry.coordinates.map(Number)
+      : null;
+
+  const coordsActuallyChanged =
+    manualCoords &&
+    (!existingCoords ||
+      Math.abs(manualCoords[0] - existingCoords[0]) > 1e-6 ||
+      Math.abs(manualCoords[1] - existingCoords[1]) > 1e-6);
+
+  const locationTextChanged =
+    Boolean(req.body.listing?.location && req.body.listing.location.trim() !== (listing.location || "").trim()) ||
+    Boolean(req.body.listing?.country && req.body.listing.country.trim() !== (listing.country || "").trim());
+
+  if (manualCoords && (coordsModifiedFlag || coordsActuallyChanged || !existingCoords)) {
     listing.geometry = { type: "Point", coordinates: manualCoords };
     listing.isLocationResolved = true;
     listing.locationResolutionNotes = `Manually updated coordinates: [${manualCoords[0]}, ${manualCoords[1]}].`;
-  } else if (geocodingClient && req.body.listing?.location && req.body.listing.location !== listing.location) {
+  } else if (geocodingClient && req.body.listing?.location && locationTextChanged) {
     try {
       const queryAddress = `${req.body.listing.location}, ${req.body.listing.country || listing.country || "India"}`;
       const response = await geocodingClient
@@ -489,6 +512,7 @@ module.exports.updateListing = async (req, res) => {
   delete updateData.geometry;
   delete updateData.latitude;
   delete updateData.longitude;
+  delete updateData.coordinatesModified;
 
   Object.assign(listing, updateData);
   if (req.body.amenities) {

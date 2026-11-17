@@ -55,6 +55,7 @@ module.exports.listingSchema = joi
         coordinates: joi.string().allow("", null),
         latitude: joi.alternatives().try(joi.number(), joi.string().allow("")).allow(null),
         longitude: joi.alternatives().try(joi.number(), joi.string().allow("")).allow(null),
+        coordinatesModified: joi.alternatives().try(joi.boolean(), joi.string().allow("")).allow(null),
       })
       .required(),
     // Allow legitimate fields sent directly at top-level of form
