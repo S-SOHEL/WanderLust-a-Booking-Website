@@ -1,0 +1,101 @@
+<% layout("/layouts/boilerplate") %>
+
+<% const currentTab = 'reviews'; %>
+<%- include("./adminNav.ejs") %>
+
+<div class="card border-0 shadow-sm rounded-4 p-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+    <div>
+      <h4 class="fw-bold mb-1">Reviews Moderation</h4>
+      <p class="text-muted small mb-0">Monitor, review, and moderate guest ratings across all platform listings.</p>
+    </div>
+    <span class="badge bg-danger rounded-pill px-3 py-2 fs-6" style="background-color: #fe424d !important;">
+      <%= reviews.length %> <%= reviews.length === 1 ? 'Review' : 'Reviews' %>
+    </span>
+  </div>
+
+  <% if (reviews.length === 0) { %>
+    <div class="text-center py-5">
+      <i class="fa-regular fa-star text-muted mb-3" style="font-size: 3rem;"></i>
+      <h5>No Reviews Submitted Yet</h5>
+      <p class="text-muted small">Guest reviews from completed stays will be listed here.</p>
+    </div>
+  <% } else { %>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Property</th>
+            <th>Reviewer</th>
+            <th>Rating</th>
+            <th>Comment</th>
+            <th>Verification</th>
+            <th>Date</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (let r of reviews) { %>
+            <tr>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <img src="<%= (r.listing && r.listing.images && r.listing.images.length > 0) ? r.listing.images[0].url : (r.listing && r.listing.image && r.listing.image.url ? r.listing.image.url : 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=400&q=80') %>" class="rounded-2 shadow-sm" style="width: 50px; height: 40px; object-fit: cover;" alt="">
+                  <div>
+                    <h6 class="mb-0 fw-bold small">
+                      <% if (r.listing) { %>
+                        <a href="/listings/<%= r.listing._id %>" class="text-dark text-decoration-none" target="_blank">
+                          <%= r.listing.title %>
+                        </a>
+                      <% } else { %>
+                        <span class="text-muted">Deleted Property</span>
+                      <% } %>
+                    </h6>
+                    <small class="text-muted"><%= r.listing ? r.listing.location : '' %></small>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="small">
+                  <span class="fw-semibold text-dark"><%= r.author ? (r.author.fullName || r.author.username) : 'Legacy Community Guest' %></span>
+                  <div class="text-muted"><%= r.author ? r.author.email : 'Preserved pre-launch record' %></div>
+                </div>
+              </td>
+              <td>
+                <span class="text-warning fw-bold">
+                  <% for (let i = 1; i <= 5; i++) { %>
+                    <i class="fa-solid fa-star <%= i <= r.rating ? 'text-warning' : 'text-muted text-opacity-25' %>" style="font-size: 0.8rem;"></i>
+                  <% } %>
+                  <span class="ms-1 text-dark small"><%= r.rating %>/5</span>
+                </span>
+              </td>
+              <td style="max-width: 250px;">
+                <p class="mb-0 small text-truncate" title="<%= r.comment %>"><%= r.comment %></p>
+              </td>
+              <td>
+                <% if (r.isVerifiedStay && r.booking && r.author) { %>
+                  <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-2 py-1 small">
+                    <i class="fa-solid fa-circle-check me-1"></i>Verified Stay
+                  </span>
+                <% } else { %>
+                  <span class="badge bg-light text-secondary border rounded-pill px-2 py-1 small">
+                    <i class="fa-solid fa-clock-rotate-left me-1"></i>Legacy Review
+                  </span>
+                <% } %>
+              </td>
+              <td class="small text-muted">
+                <%= new Date(r.createdAt || Date.now()).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) %>
+              </td>
+              <td class="text-end">
+                <form action="/admin/reviews/<%= r._id %>?_method=DELETE" method="POST" onsubmit="return confirm('Delete this review permanently?');">
+                  <button class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                    <i class="fa-solid fa-trash-can me-1"></i>Remove
+                  </button>
+                </form>
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>

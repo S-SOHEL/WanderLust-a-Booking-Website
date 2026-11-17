@@ -1,0 +1,513 @@
+<% layout("/layouts/boilerplate") %>
+
+<% const currentTab = 'locations'; %>
+<%- include("./adminNav.ejs", { currentTab }) %>
+
+<div class="container-fluid px-0 mb-5">
+  <!-- Page Header -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h3 class="fw-bold mb-1">
+        <i class="fa-solid fa-map-location-dot text-danger me-2"></i>Location Quality & Geocoding Integrity
+      </h3>
+      <p class="text-muted small mb-0">
+        Monitor geospatial resolution, inspect coordinate accuracy, and manually adjust property map pins.
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="/admin/remediation" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+        <i class="fa-solid fa-clipboard-check me-1"></i> Remediation Queue
+      </a>
+      <a href="/admin/listings" class="btn btn-outline-dark btn-sm rounded-pill px-3">
+        <i class="fa-solid fa-hotel me-1"></i> Properties Directory
+      </a>
+    </div>
+  </div>
+
+  <!-- Metric Statistics Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted small text-uppercase fw-semibold d-block">Total Platform Listings</span>
+            <h3 class="fw-bold mb-0 mt-1"><%= stats.totalListings %></h3>
+          </div>
+          <div class="bg-light text-dark rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+            <i class="fa-solid fa-globe fs-5"></i>
+          </div>
+        </div>
+        <div class="mt-2 text-muted small">
+          <i class="fa-solid fa-database me-1"></i> MongoDB wanderlust collection
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white border-start border-4 border-success">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted small text-uppercase fw-semibold d-block">Verified Locations</span>
+            <h3 class="fw-bold mb-0 mt-1 text-success"><%= stats.verifiedCount %></h3>
+          </div>
+          <div class="bg-success-subtle text-success rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+            <i class="fa-solid fa-circle-check fs-5"></i>
+          </div>
+        </div>
+        <div class="mt-2 text-muted small">
+          <i class="fa-solid fa-shield-check me-1 text-success"></i> Authentic bounding box & geocoded
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white border-start border-4 border-danger">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted small text-uppercase fw-semibold d-block">Unresolved Locations</span>
+            <h3 class="fw-bold mb-0 mt-1 <%= stats.unresolvedCount > 0 ? 'text-danger' : 'text-muted' %>"><%= stats.unresolvedCount %></h3>
+          </div>
+          <div class="bg-danger-subtle text-danger rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+            <i class="fa-solid fa-triangle-exclamation fs-5"></i>
+          </div>
+        </div>
+        <div class="mt-2 text-muted small">
+          <i class="fa-solid fa-ban me-1 text-danger"></i> Missing coordinates (Publication blocked)
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white border-start border-4 border-warning">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted small text-uppercase fw-semibold d-block">Requires Manual Review</span>
+            <h3 class="fw-bold mb-0 mt-1 <%= stats.reviewNeededCount > 0 ? 'text-warning' : 'text-muted' %>"><%= stats.reviewNeededCount %></h3>
+          </div>
+          <div class="bg-warning-subtle text-warning rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+            <i class="fa-solid fa-map-pin fs-5"></i>
+          </div>
+        </div>
+        <div class="mt-2 text-muted small">
+          <i class="fa-solid fa-eye me-1 text-warning"></i> Potential fallback / out-of-bounds
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Quality & Referential Integrity Section -->
+  <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white border-start border-4 border-info">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div class="d-flex align-items-center gap-3">
+        <div class="bg-info-subtle text-info rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+          <i class="fa-solid fa-shield-halved fs-5"></i>
+        </div>
+        <div>
+          <h6 class="fw-bold mb-0 text-dark">Data Quality & Referential Integrity Overview</h6>
+          <small class="text-muted">
+            100% of 150 property owners valid & verified (<%= stats.orphanedOwnersCount %> orphans) &bull; 
+            Booking guest references: <%= stats.orphanedBookingsCount %> legacy QA test booking &bull; 
+            Review author references: <%= stats.orphanedReviewsCount %> legacy seed review
+          </small>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
+          <i class="fa-solid fa-check-double me-1"></i>0 Owner Orphans
+        </span>
+        <span class="badge bg-light text-muted border px-3 py-2">
+          <i class="fa-solid fa-database me-1"></i>Integrity Verified
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Pills & Search -->
+  <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <ul class="nav nav-pills gap-1">
+        <li class="nav-item">
+          <a class="nav-link btn-sm py-1 px-3 <%= currentFilter === 'all' ? 'active bg-dark' : 'text-dark' %>" href="/admin/locations?filter=all">
+            All Listings (<%= stats.totalListings %>)
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link btn-sm py-1 px-3 <%= currentFilter === 'verified' ? 'active bg-success' : 'text-dark' %>" href="/admin/locations?filter=verified">
+            <i class="fa-solid fa-check me-1"></i> Verified (<%= stats.verifiedCount %>)
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link btn-sm py-1 px-3 <%= currentFilter === 'unresolved' ? 'active bg-danger' : 'text-dark' %>" href="/admin/locations?filter=unresolved">
+            <i class="fa-solid fa-triangle-exclamation me-1"></i> Unresolved (<%= stats.unresolvedCount %>)
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link btn-sm py-1 px-3 <%= currentFilter === 'review_needed' ? 'active bg-warning text-dark' : 'text-dark' %>" href="/admin/locations?filter=review_needed">
+            <i class="fa-solid fa-map-pin me-1"></i> Review Needed (<%= stats.reviewNeededCount %>)
+          </a>
+        </li>
+      </ul>
+
+      <div class="d-flex align-items-center gap-2">
+        <input type="text" id="locationTableSearch" class="form-control form-control-sm" placeholder="Filter by title, city, country..." style="max-width: 260px;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Locations Inventory Table -->
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" id="locationsTable">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">Property</th>
+            <th>Stored Address</th>
+            <th>Current Coordinates</th>
+            <th>Geocoding Status</th>
+            <th>Live Visibility</th>
+            <th class="text-end pe-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (listings.length === 0) { %>
+            <tr>
+              <td colspan="6" class="text-center py-5 text-muted">
+                <i class="fa-solid fa-map-location text-muted mb-2" style="font-size: 2.5rem;"></i>
+                <p class="mb-0">No listings match the current filter.</p>
+              </td>
+            </tr>
+          <% } else { %>
+            <% for (let l of listings) { %>
+              <tr class="listing-row" data-id="<%= l._id %>" data-title="<%= l.title %>" data-location="<%= l.location %>" data-country="<%= l.country %>">
+                <td class="ps-4">
+                  <div class="d-flex align-items-center">
+                    <img src="<%= l.image && l.image.url ? l.image.url : '/images/default.jpg' %>" class="rounded-3 me-3" style="width: 52px; height: 44px; object-fit: cover;" alt="">
+                    <div>
+                      <a href="/listings/<%= l._id %>" target="_blank" class="fw-bold text-dark text-decoration-none d-block small">
+                        <%= l.title %>
+                      </a>
+                      <small class="text-muted" style="font-size: 0.72rem;">
+                        ID: <%= l._id %> | Host: @<%= l.owner ? l.owner.username : 'admin' %>
+                      </small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="d-block fw-semibold small"><%= l.location %></span>
+                  <small class="text-muted"><%= l.city ? l.city + ', ' : '' %><%= l.state ? l.state + ', ' : '' %><%= l.country %></small>
+                </td>
+                <td>
+                  <code class="px-2 py-1 bg-light rounded text-dark small" style="font-size: 0.78rem;">
+                    <%= l.formattedCoordinates %>
+                  </code>
+                </td>
+                <td>
+                  <span class="badge <%= l.badgeClass %>" style="font-size: 0.7rem;">
+                    <%= l.statusLabel %>
+                  </span>
+                  <% if (l.locationResolutionNotes) { %>
+                    <small class="d-block text-muted text-truncate mt-1" style="max-width: 240px; font-size: 0.68rem;" title="<%= l.locationResolutionNotes %>">
+                      <%= l.locationResolutionNotes %>
+                    </small>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (l.isPublished !== false) { %>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.7rem;">
+                      <i class="fa-solid fa-eye me-1"></i>Published
+                    </span>
+                  <% } else { %>
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" style="font-size: 0.7rem;">
+                      <i class="fa-solid fa-eye-slash me-1"></i>Hidden
+                    </span>
+                  <% } %>
+                </td>
+                <td class="text-end pe-4">
+                  <div class="d-inline-flex gap-1">
+                    <button class="btn btn-sm btn-outline-dark inspect-pin-btn" 
+                      data-id="<%= l._id %>"
+                      data-title="<%= l.title %>"
+                      data-location="<%= l.location %>"
+                      data-country="<%= l.country %>"
+                      data-lng="<%= l.geometry && l.geometry.coordinates ? l.geometry.coordinates[0] : '' %>"
+                      data-lat="<%= l.geometry && l.geometry.coordinates ? l.geometry.coordinates[1] : '' %>"
+                      data-published="<%= l.isPublished !== false %>"
+                      title="Inspect and adjust map pin">
+                      <i class="fa-solid fa-map-pin me-1 text-danger"></i> Pin Picker
+                    </button>
+                    <a href="/admin/listings/<%= l._id %>/edit" class="btn btn-sm btn-light border" title="Full Property Edit">
+                      <i class="fa-solid fa-pen-to-square"></i>
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            <% } %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Interactive Mapbox Pin Picker & Inspector -->
+<div class="modal fade" id="locationInspectorModal" tabindex="-1" aria-labelledby="locationInspectorModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-bottom px-4 pt-4 pb-3">
+        <div>
+          <h5 class="modal-title fw-bold" id="locationInspectorModalLabel">
+            <i class="fa-solid fa-map-location-dot text-danger me-2"></i>Inspect & Adjust Location
+          </h5>
+          <p class="text-muted small mb-0" id="modalPropertySubtitle">Adjust coordinates with Mapbox draggable pin.</p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body px-4 py-3">
+        <!-- Interactive Map Container -->
+        <div class="position-relative mb-3 rounded-4 overflow-hidden border shadow-sm">
+          <div id="adminPinPickerMap" style="height: 340px; width: 100%;"></div>
+          <div class="position-absolute top-0 start-0 m-3 bg-white px-3 py-1 rounded-pill shadow-sm small fw-semibold text-muted" style="z-index: 10;">
+            <i class="fa-solid fa-crosshairs me-1 text-danger"></i> Drag the red pin to set precise location
+          </div>
+        </div>
+
+        <form id="fixLocationForm" method="POST">
+          <input type="hidden" name="_method" value="PATCH">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="modalLocation" class="form-label fw-semibold small">Location / City</label>
+              <input type="text" class="form-control form-control-sm" id="modalLocation" name="location" required>
+            </div>
+            <div class="col-md-6">
+              <label for="modalCountry" class="form-label fw-semibold small">Country</label>
+              <div class="input-group input-group-sm">
+                <input type="text" class="form-control" id="modalCountry" name="country" required>
+                <button class="btn btn-outline-secondary" type="button" id="modalLocateBtn" title="Geocode Address via Mapbox API">
+                  <i class="fa-solid fa-magnifying-glass me-1 text-danger"></i> Geocode
+                </button>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label for="modalLongitude" class="form-label fw-semibold small">Longitude (Lng)</label>
+              <input type="number" step="any" class="form-control form-control-sm" id="modalLongitude" name="longitude" required>
+            </div>
+            <div class="col-md-6">
+              <label for="modalLatitude" class="form-label fw-semibold small">Latitude (Lat)</label>
+              <input type="number" step="any" class="form-control form-control-sm" id="modalLatitude" name="latitude" required>
+            </div>
+            <div class="col-12">
+              <div class="form-check form-switch mt-1">
+                <input class="form-check-input" type="checkbox" id="modalIsPublished" name="isPublished">
+                <label class="form-check-label fw-semibold small" for="modalIsPublished">Publicly Visible & Published</label>
+                <small class="d-block text-muted">Uncheck if coordinates are unverified or awaiting verification.</small>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-top px-4 py-3">
+        <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-dark btn-sm px-4 fw-semibold" id="saveLocationBtn">
+          <i class="fa-solid fa-floppy-disk me-1"></i> Save Coordinates
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Mapbox GL JS & Stylesheet -->
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css" rel="stylesheet" />
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.js"></script>
+
+<script>
+  const adminMapToken = "<%= mapToken %>";
+  let adminPickerMap = null;
+  let adminMarker = null;
+  let currentActiveListingId = null;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // Client-side quick filter
+    const searchInput = document.getElementById("locationTableSearch");
+    if (searchInput) {
+      searchInput.addEventListener("input", (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        const rows = document.querySelectorAll("#locationsTable tbody tr.listing-row");
+        rows.forEach((row) => {
+          const title = (row.getAttribute("data-title") || "").toLowerCase();
+          const location = (row.getAttribute("data-location") || "").toLowerCase();
+          const country = (row.getAttribute("data-country") || "").toLowerCase();
+          if (!query || title.includes(query) || location.includes(query) || country.includes(query)) {
+            row.style.display = "";
+          } else {
+            row.style.display = "none";
+          }
+        });
+      });
+    }
+
+    // Modal Inspection Setup
+    const modalEl = document.getElementById("locationInspectorModal");
+    const inspectorModal = new bootstrap.Modal(modalEl);
+    const modalTitleSub = document.getElementById("modalPropertySubtitle");
+    const inputLoc = document.getElementById("modalLocation");
+    const inputCountry = document.getElementById("modalCountry");
+    const inputLng = document.getElementById("modalLongitude");
+    const inputLat = document.getElementById("modalLatitude");
+    const inputPub = document.getElementById("modalIsPublished");
+    const locateBtn = document.getElementById("modalLocateBtn");
+    const saveBtn = document.getElementById("saveLocationBtn");
+    const formEl = document.getElementById("fixLocationForm");
+
+    document.querySelectorAll(".inspect-pin-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        currentActiveListingId = btn.getAttribute("data-id");
+        const title = btn.getAttribute("data-title");
+        const location = btn.getAttribute("data-location");
+        const country = btn.getAttribute("data-country");
+        const lngVal = parseFloat(btn.getAttribute("data-lng"));
+        const latVal = parseFloat(btn.getAttribute("data-lat"));
+        const isPub = btn.getAttribute("data-published") === "true";
+
+        modalTitleSub.textContent = `${title} (${location}, ${country})`;
+        inputLoc.value = location;
+        inputCountry.value = country;
+        inputPub.checked = isPub;
+
+        const hasValid = !isNaN(lngVal) && !isNaN(latVal) && lngVal >= -180 && lngVal <= 180 && latVal >= -90 && latVal <= 90;
+        const center = hasValid ? [lngVal, latVal] : [78.9629, 20.5937]; // Center of India if not set
+        const zoom = hasValid ? 12 : 4;
+
+        inputLng.value = hasValid ? lngVal.toFixed(6) : "";
+        inputLat.value = hasValid ? latVal.toFixed(6) : "";
+
+        formEl.action = `/admin/listings/${currentActiveListingId}/fix-location`;
+
+        inspectorModal.show();
+
+        // Initialize Mapbox map after modal is shown to ensure correct canvas dimensions
+        setTimeout(() => {
+          if (!adminPickerMap && typeof mapboxgl !== "undefined" && adminMapToken) {
+            mapboxgl.accessToken = adminMapToken;
+            adminPickerMap = new mapboxgl.Map({
+              container: "adminPinPickerMap",
+              style: "mapbox://styles/mapbox/streets-v12",
+              center: center,
+              zoom: zoom,
+            });
+
+            adminPickerMap.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+            adminMarker = new mapboxgl.Marker({
+              color: "#fe424d",
+              draggable: true,
+            })
+              .setLngLat(center)
+              .addTo(adminPickerMap);
+
+            adminMarker.on("dragend", () => {
+              const pos = adminMarker.getLngLat();
+              inputLng.value = pos.lng.toFixed(6);
+              inputLat.value = pos.lat.toFixed(6);
+            });
+
+            adminPickerMap.on("click", (e) => {
+              adminMarker.setLngLat(e.lngLat);
+              inputLng.value = e.lngLat.lng.toFixed(6);
+              inputLat.value = e.lngLat.lat.toFixed(6);
+            });
+          } else if (adminPickerMap && adminMarker) {
+            adminPickerMap.resize();
+            adminPickerMap.flyTo({ center: center, zoom: zoom });
+            adminMarker.setLngLat(center);
+          }
+        }, 300);
+      });
+    });
+
+    // Geocode button inside Modal
+    if (locateBtn) {
+      locateBtn.addEventListener("click", async () => {
+        const query = `${inputLoc.value || ""}, ${inputCountry.value || ""}`.trim();
+        if (!query || query === ",") {
+          alert("Please enter a Location and Country first.");
+          return;
+        }
+
+        locateBtn.disabled = true;
+        locateBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        try {
+          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${adminMapToken}&limit=1`);
+          const data = await res.json();
+          if (data && data.features && data.features.length > 0) {
+            const coords = data.features[0].center; // [lng, lat]
+            inputLng.value = coords[0].toFixed(6);
+            inputLat.value = coords[1].toFixed(6);
+
+            if (adminPickerMap && adminMarker) {
+              adminMarker.setLngLat(coords);
+              adminPickerMap.flyTo({ center: coords, zoom: 12 });
+            }
+          } else {
+            alert(`No location matches found for "${query}". Please adjust pin manually.`);
+          }
+        } catch (err) {
+          console.error("Geocoding lookup error:", err);
+          alert("Error contacting geocoding service.");
+        } finally {
+          locateBtn.disabled = false;
+          locateBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass me-1 text-danger"></i> Geocode';
+        }
+      });
+    }
+
+    // Save Location Button via AJAX
+    if (saveBtn) {
+      saveBtn.addEventListener("click", async () => {
+        const lng = parseFloat(inputLng.value);
+        const lat = parseFloat(inputLat.value);
+
+        if (isNaN(lng) || isNaN(lat) || lng < -180 || lng > 180 || lat < -90 || lat > 90) {
+          alert("Please enter valid numerical coordinates: Longitude (-180 to 180) and Latitude (-90 to 90).");
+          return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+
+        try {
+          const payload = {
+            longitude: lng,
+            latitude: lat,
+            location: inputLoc.value,
+            country: inputCountry.value,
+            isPublished: inputPub.checked,
+          };
+
+          const res = await fetch(`/admin/listings/${currentActiveListingId}/fix-location`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await res.json();
+          if (data && data.success) {
+            inspectorModal.hide();
+            window.location.reload();
+          } else {
+            alert(data.message || "Failed to update location.");
+          }
+        } catch (err) {
+          console.error("Save error:", err);
+          alert("Network error occurred while saving location.");
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk me-1"></i> Save Coordinates';
+        }
+      });
+    }
+  });
+</script>

@@ -1,34 +1,103 @@
 const Listing = require("../models/listing.js");
 const Review = require("../models/review.js");
-
+const Booking = require("../models/booking.js");
+const { autoUpdateCompletedBookings } = require("../utils/bookingLifecycle.js");
 
 module.exports.createReview = async (req, res) => {
-    console.log(req.params.id);
-    let listing = await Listing.findById(req.params.id);
-    let newReview = new Review(req.body.review);
-    newReview.author = req.user._id;
+  await autoUpdateCompletedBookings();
 
-    listing.reviews.push(newReview);
+  const { id } = req.params;
+  const listing = await Listing.findById(id);
 
-    await newReview.save();
-    await listing.save();
-    req.flash("success", "New Review Created !");
+  if (!listing) {
+    req.flash("error", "Listing does not exist!");
+    return res.redirect("/listings");
+  }
 
-    res.redirect(`/listings/${listing._id}`);
+  // 1. Prevent host self-reviews
+  if (listing.owner && listing.owner.equals(req.user._id)) {
+    req.flash("error", "Hosts cannot submit reviews for their own listings.");
+    return res.redirect(`/listings/${listing._id}`);
+  }
 
-}
+  // 2. Find eligible completed stay for this guest
+  const eligibleBooking = await Booking.findOne({
+    listing: listing._id,
+    user: req.user._id,
+    status: "Completed",
+    hasReviewed: { $ne: true },
+  }).sort({ checkOut: -1 });
 
-module.exports.destroyReview = async (req, res) => {
-   let { id, reviewId } = req.params;
-
-    // remove review reference from listing
-    await Listing.findByIdAndUpdate(id, {
-        $pull: { reviews: reviewId }
+  if (!eligibleBooking) {
+    // Check if user already reviewed or has an active/uncompleted reservation
+    const pastReviewed = await Booking.findOne({
+      listing: listing._id,
+      user: req.user._id,
+      status: "Completed",
+      hasReviewed: true,
     });
 
-    // delete review document
-    await Review.findByIdAndDelete(reviewId);
+    if (pastReviewed) {
+      req.flash("error", "You have already submitted a review for your completed stay here.");
+      return res.redirect(`/listings/${listing._id}`);
+    }
 
-    req.flash("success", "Review deleted !");
-    res.redirect(`/listings/${id}`);
-}
+    const anyBooking = await Booking.findOne({
+      listing: listing._id,
+      user: req.user._id,
+    });
+
+    if (anyBooking) {
+      req.flash("error", "You can only review this property once your stay has officially completed.");
+      return res.redirect(`/listings/${listing._id}`);
+    }
+
+    req.flash("error", "Only verified guests with a completed stay can write a review.");
+    return res.redirect(`/listings/${listing._id}`);
+  }
+
+  // 3. Create verified review linked to booking and listing
+  const newReview = new Review({
+    comment: req.body.review.comment,
+    rating: Number(req.body.review.rating),
+    listing: listing._id,
+    booking: eligibleBooking._id,
+    bookingRef: eligibleBooking.bookingRef,
+    isVerifiedStay: true,
+    author: req.user._id,
+  });
+
+  await newReview.save();
+
+  // Append to listing
+  listing.reviews.push(newReview._id);
+  await listing.save();
+
+  // Mark booking as reviewed
+  eligibleBooking.hasReviewed = true;
+  await eligibleBooking.save();
+
+  req.flash("success", "Thank you! Your verified review has been published.");
+  res.redirect(`/listings/${listing._id}`);
+};
+
+module.exports.destroyReview = async (req, res) => {
+  const { id, reviewId } = req.params;
+
+  const review = await Review.findById(reviewId);
+  if (review && review.booking) {
+    // Re-allow reviewing if their review is removed
+    await Booking.findByIdAndUpdate(review.booking, { hasReviewed: false });
+  }
+
+  // Remove review reference from listing
+  await Listing.findByIdAndUpdate(id, {
+    $pull: { reviews: reviewId },
+  });
+
+  // Delete review document
+  await Review.findByIdAndDelete(reviewId);
+
+  req.flash("success", "Review deleted successfully!");
+  res.redirect(`/listings/${id}`);
+};

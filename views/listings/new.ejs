@@ -1,72 +1,377 @@
 <% layout("/layouts/boilerplate") %>
-    <div class="row mt-3">
-        <div class="col-8 offset-2">
-            
 
-
-            <h3>Create  a New Listing</h3>
-            <form method="POST" action="/listings" novalidate class="needs-validation" enctype="multipart/form-data">
-
-
-                <div class="mb-3">
-                    <label for="title" class="form-label">Title</label>
-                    <input class="form-control" name="listing[title]" placeholder="Add a catchy title" type="text"
-                    required />
-                    <div class="valid-feedback">Tittle looks good !!</div>
-                </div>
-                
-
-
-                <div class="mb-3 "><label for="description" class="form-label">Description</label>
-                    <input class="form-control" name="listing[description]" placeholder="Enter description" type="text"
-                         />
-                </div>
-
-
-
-
-                <!-- <div class="mb-3"><label class="form-label" for="image">Image Link</label>
-                    <input class="form-control" name="listing[image]" placeholder="Enter image URL/Link" type="text"
-                 />
-                </div> -->
-
-                <div class="mb-3"><label class="form-label" for="image"> Upload Listing Image </label>
-                    <input class="form-control" name="listing[image]" placeholder="Enter image URL/Link" type="file"
-                 />
-                </div>
-
-                <div class="row">
-
-
-                    <div class="mb-3 col-md-4"><label class="form-label" for="price">Price (INR)</label>
-                        <input class="form-control" name="listing[price]" placeholder="1200" ype="number" 
-                        required/>
-                        <div class="invalid-feedback">Price should be valid</div>
-
-                    </div>
-
-
-                    <div class="mb-3 col-md-8"><label class="form-label" for="country">Country</label>
-                        <input name="listing[country]" class="form-control" placeholder="india" type="text" 
-                          required/>
-                          <div class="invalid-feedback">Country should be valid</div>
-                    </div>
-
-                </div>
-
-
-                <div class="mb-3"><label class="form-label" for="location">Location</label>
-                    <input class="form-control" name="listing[location]" placeholder="Pune Maharastra" type="text"
-                     required/>
-                     <div class="invalid-feedback">Location should be valid</div>
-                </div>
-
-
-
-
-
-                <button class="btn btn-dark add-btn mt-3" type="submit">Add Listing</button>
-            </form>
-
+<div class="row mt-4 mb-5">
+  <div class="col-12 col-md-10 offset-md-1 col-lg-8 offset-lg-2">
+    <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5">
+      <div class="d-flex align-items-center justify-content-between mb-4 border-bottom pb-3">
+        <div>
+          <h3 class="fw-bold mb-1">Airbnb Your Home</h3>
+          <p class="text-muted small mb-0">List your property on WanderLust and start hosting travelers worldwide.</p>
         </div>
+        <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-3 py-2 fw-semibold">
+          <i class="fa-solid fa-house-chimney me-1"></i>Host Portal
+        </span>
+      </div>
+
+      <form method="POST" action="/listings" novalidate class="needs-validation" enctype="multipart/form-data" id="newListingForm">
+        <!-- 1. Basic Details -->
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-md-8">
+            <label for="title" class="form-label fw-semibold">Listing Title <span class="text-danger">*</span></label>
+            <input class="form-control rounded-3" name="listing[title]" id="title" placeholder="e.g. Modern Sea-Facing Villa with Private Pool" type="text" required />
+            <div class="invalid-feedback">Please enter a property title.</div>
+          </div>
+          <div class="col-12 col-md-4">
+            <label for="propertyType" class="form-label fw-semibold">Property Type</label>
+            <select name="listing[propertyType]" id="propertyType" class="form-select rounded-3">
+              <option value="Apartment" selected>Apartment</option>
+              <option value="Villa">Villa</option>
+              <option value="Cabin">Cabin</option>
+              <option value="Cottage">Cottage</option>
+              <option value="Studio">Studio</option>
+              <option value="Haveli">Haveli</option>
+              <option value="House">House</option>
+              <option value="Resort">Resort</option>
+              <option value="Hotel">Hotel</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 2. Description -->
+        <div class="mb-3">
+          <label for="description" class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
+          <textarea class="form-control rounded-3" name="listing[description]" id="description" rows="4" placeholder="Describe the ambiance, scenic views, nearby attractions, and what makes your space special..." required></textarea>
+          <div class="invalid-feedback">Please provide a description of your space.</div>
+        </div>
+
+        <!-- 3. Multiple Image Upload with Live Preview & Remove -->
+        <div class="mb-3 p-3 bg-light rounded-3 border">
+          <label class="form-label fw-semibold mb-1" for="image">
+            <i class="fa-regular fa-images me-1 text-danger"></i>Property Photos (Multiple Supported)
+          </label>
+          <p class="text-muted small mb-2">Upload high quality photos of your living area, bedrooms, views, and exterior. You can preview and remove individual photos before publishing.</p>
+          <input class="form-control rounded-3" name="listing[image]" id="image" type="file" multiple accept="image/png, image/jpeg, image/jpg, image/webp" />
+          
+          <div id="imagePreviewContainer" class="d-flex flex-wrap gap-3 mt-3"></div>
+
+          <div class="mt-3 pt-2 border-top">
+            <label for="imageUrl" class="form-label fw-semibold small text-muted">Or paste an Image URL (Optional)</label>
+            <input class="form-control form-control-sm rounded-3" name="listing[imageUrl]" id="imageUrl" placeholder="https://images.unsplash.com/photo-..." type="url" />
+          </div>
+        </div>
+
+        <!-- 4. Pricing & Space Capacity -->
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-md-3">
+            <label class="form-label fw-semibold" for="price">Price (INR / night) <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text bg-white">&#8377;</span>
+              <input class="form-control rounded-end-3" name="listing[price]" id="price" placeholder="4500" type="number" min="0" required />
+            </div>
+            <div class="invalid-feedback">Please enter a valid price.</div>
+          </div>
+
+          <div class="col-6 col-md-3">
+            <label class="form-label fw-semibold" for="maxGuests">Max Guests</label>
+            <input class="form-control rounded-3" name="listing[maxGuests]" id="maxGuests" type="number" min="1" max="50" value="2" required />
+          </div>
+
+          <div class="col-6 col-md-2">
+            <label class="form-label fw-semibold" for="bedrooms">Bedrooms</label>
+            <input class="form-control rounded-3" name="listing[bedrooms]" id="bedrooms" type="number" min="0" value="1" />
+          </div>
+
+          <div class="col-6 col-md-2">
+            <label class="form-label fw-semibold" for="beds">Beds</label>
+            <input class="form-control rounded-3" name="listing[beds]" id="beds" type="number" min="1" value="1" />
+          </div>
+
+          <div class="col-6 col-md-2">
+            <label class="form-label fw-semibold" for="bathrooms">Bathrooms</label>
+            <input class="form-control rounded-3" name="listing[bathrooms]" id="bathrooms" type="number" min="1" value="1" />
+          </div>
+        </div>
+
+        <!-- 5. Address & Location Structure -->
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-semibold" for="address">Street / Building Address</label>
+            <input class="form-control rounded-3" name="listing[address]" id="address" placeholder="e.g. 102 Sunset Boulevard, Near Calangute" type="text" />
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-semibold" for="location">Location / City <span class="text-danger">*</span></label>
+            <input class="form-control rounded-3" name="listing[location]" id="location" placeholder="e.g. Candolim, Goa" type="text" required />
+            <div class="invalid-feedback">Location is required.</div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-semibold" for="city">City / Town</label>
+            <input class="form-control rounded-3" name="listing[city]" id="city" placeholder="e.g. Panaji" type="text" />
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-semibold" for="state">State / Province</label>
+            <input class="form-control rounded-3" name="listing[state]" id="state" placeholder="e.g. Goa" type="text" />
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-semibold" for="country">Country <span class="text-danger">*</span></label>
+            <input name="listing[country]" id="country" class="form-control rounded-3" placeholder="India" value="India" type="text" required />
+            <div class="invalid-feedback">Country is required.</div>
+          </div>
+        </div>
+
+        <!-- 5b. Map Pin Picker & Geographic Precision -->
+        <div class="mb-3 p-3 bg-light rounded-3 border">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+            <div>
+              <label class="form-label fw-semibold mb-0">
+                <i class="fa-solid fa-map-pin me-1 text-danger"></i>Location Pinpoint & Coordinates (Optional / Interactive)
+              </label>
+              <div class="text-muted small">Pinpoint the exact location on the map, or click "Locate Address" to auto-fetch coordinates.</div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-dark rounded-pill px-3" id="locateAddressBtn">
+              <i class="fa-solid fa-crosshairs me-1 text-danger"></i>Locate Address
+            </button>
+          </div>
+
+          <div id="pinPickerMap" class="rounded-3 border mb-3" style="height: 260px; width: 100%; background: #e9ecef;">
+            <% if (!mapToken) { %>
+              <div class="d-flex align-items-center justify-content-center h-100 text-muted small p-3 text-center">
+                Interactive map preview requires MAP_TOKEN in environment. You can still enter coordinates manually below.
+              </div>
+            <% } %>
+          </div>
+
+          <div class="row g-2">
+            <div class="col-12 col-md-6">
+              <label for="latitude" class="form-label small fw-semibold text-muted mb-1">Latitude (-90 to 90)</label>
+              <input type="number" step="any" min="-90" max="90" class="form-control form-control-sm rounded-3" name="listing[latitude]" id="latitude" placeholder="e.g. 19.0760">
+              <div class="form-text small" style="font-size: 0.72rem;">Drag the pin on the map or enter manually.</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="longitude" class="form-label small fw-semibold text-muted mb-1">Longitude (-180 to 180)</label>
+              <input type="number" step="any" min="-180" max="180" class="form-control form-control-sm rounded-3" name="listing[longitude]" id="longitude" placeholder="e.g. 72.8777">
+              <div class="form-text small" style="font-size: 0.72rem;">Auto-populated when pin is positioned.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. Category Selection -->
+        <div class="mb-3">
+          <label for="category" class="form-label fw-semibold">Marketplace Category</label>
+          <select name="listing[category]" id="category" class="form-select rounded-3">
+            <option value="Trending" selected>Trending</option>
+            <option value="Rooms">Rooms</option>
+            <option value="Iconic Cities">Iconic Cities</option>
+            <option value="Mountains">Mountains</option>
+            <option value="Castles">Castles</option>
+            <option value="Amazing Pools">Amazing Pools</option>
+            <option value="Camping">Camping</option>
+            <option value="Farms">Farms</option>
+            <option value="Arctic">Arctic</option>
+            <option value="Domes">Domes</option>
+            <option value="Boats">Boats</option>
+          </select>
+        </div>
+
+        <!-- 7. Amenities Checklist -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Amenities Included</label>
+          <div class="row g-2">
+            <% const amenitiesList = ["Wifi", "Pool", "Air conditioning", "Kitchen", "Free parking", "TV", "Dedicated workspace", "Mountain view", "Sea view", "Balcony"]; %>
+            <% for (let a of amenitiesList) { %>
+              <div class="col-6 col-md-4">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="amenities" value="<%= a %>" id="a-<%= a.replace(/\s+/g, '') %>" <%= ["Wifi", "Kitchen"].includes(a) ? "checked" : "" %>>
+                  <label class="form-check-label small" for="a-<%= a.replace(/\s+/g, '') %>"><%= a %></label>
+                </div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Submit & Actions -->
+        <div class="d-flex align-items-center gap-3 pt-3 border-top">
+          <button class="btn btn-danger px-4 py-3 fw-bold rounded-3 shadow-sm" style="background-color: #fe424d; border-color: #fe424d;" type="submit">
+            <i class="fa-solid fa-plus me-1"></i>Publish Property
+          </button>
+          <a href="/listings" class="btn btn-outline-secondary px-4 py-3 rounded-3">Cancel</a>
+        </div>
+      </form>
     </div>
+  </div>
+</div>
+
+<script>
+  // Dynamic Image Upload Preview with Individual Remove Support
+  const imgInput = document.getElementById("image");
+  const previewContainer = document.getElementById("imagePreviewContainer");
+  let dt = new DataTransfer();
+
+  if (imgInput && previewContainer) {
+    imgInput.addEventListener("change", function () {
+      Array.from(this.files).forEach((file) => {
+        dt.items.add(file);
+      });
+      imgInput.files = dt.files;
+      renderPreviews();
+    });
+
+    function renderPreviews() {
+      previewContainer.innerHTML = "";
+      if (dt.files.length === 0) return;
+
+      Array.from(dt.files).forEach((file, index) => {
+        if (file.type.startsWith("image/")) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const wrapper = document.createElement("div");
+            wrapper.className = "position-relative border rounded-3 p-1 bg-white shadow-sm";
+            wrapper.style = "width: 95px;";
+
+            const img = document.createElement("img");
+            img.src = e.target.result;
+            img.className = "rounded-2 w-100";
+            img.style = "height: 70px; object-fit: cover;";
+
+            const removeBtn = document.createElement("button");
+            removeBtn.type = "button";
+            removeBtn.className = "btn btn-danger position-absolute top-0 end-0 translate-middle rounded-circle p-0 d-flex align-items-center justify-content-center shadow";
+            removeBtn.style = "width: 22px; height: 22px; font-size: 11px;";
+            removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+            removeBtn.title = "Remove this photo";
+
+            removeBtn.addEventListener("click", () => {
+              removeFile(index);
+            });
+
+            const label = document.createElement("span");
+            label.className = "d-block text-truncate small text-muted text-center mt-1";
+            label.style = "font-size: 10px;";
+            label.textContent = file.name;
+
+            wrapper.appendChild(img);
+            wrapper.appendChild(removeBtn);
+            wrapper.appendChild(label);
+            previewContainer.appendChild(wrapper);
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+
+    function removeFile(indexToRemove) {
+      const newDt = new DataTransfer();
+      Array.from(dt.files).forEach((file, idx) => {
+        if (idx !== indexToRemove) {
+          newDt.items.add(file);
+        }
+      });
+      dt = newDt;
+      imgInput.files = dt.files;
+      renderPreviews();
+    }
+  }
+
+  // Interactive Mapbox Pin Picker
+  const mapTokenStr = "<%= mapToken %>";
+  const pinPickerMapContainer = document.getElementById("pinPickerMap");
+  const latInput = document.getElementById("latitude");
+  const lngInput = document.getElementById("longitude");
+  const locateBtn = document.getElementById("locateAddressBtn");
+  const locInput = document.getElementById("location");
+  const countryInput = document.getElementById("country");
+
+  if (typeof mapboxgl !== "undefined" && mapTokenStr && mapTokenStr !== "undefined" && pinPickerMapContainer) {
+    try {
+      mapboxgl.accessToken = mapTokenStr;
+
+      // Default view: Center of India [78.9629, 20.5937]
+      const defaultCenter = [78.9629, 20.5937];
+      const initialZoom = 4;
+
+      const pickerMap = new mapboxgl.Map({
+        container: "pinPickerMap",
+        style: "mapbox://styles/mapbox/streets-v12",
+        center: defaultCenter,
+        zoom: initialZoom,
+        scrollZoom: false,
+      });
+
+      pickerMap.addControl(new mapboxgl.NavigationControl({ showCompass: true }), "top-right");
+
+      const marker = new mapboxgl.Marker({
+        color: "#fe424d",
+        draggable: true,
+      })
+        .setLngLat(defaultCenter)
+        .addTo(pickerMap);
+
+      function updateInputs(lngLat) {
+        if (!lngLat) return;
+        lngInput.value = (typeof lngLat.lng === "number" ? lngLat.lng : lngLat[0]).toFixed(6);
+        latInput.value = (typeof lngLat.lat === "number" ? lngLat.lat : lngLat[1]).toFixed(6);
+      }
+
+      marker.on("dragend", () => {
+        const lngLat = marker.getLngLat();
+        updateInputs(lngLat);
+      });
+
+      pickerMap.on("click", (e) => {
+        marker.setLngLat(e.lngLat);
+        updateInputs(e.lngLat);
+      });
+
+      function syncMarkerFromInputs() {
+        const lat = parseFloat(latInput.value);
+        const lng = parseFloat(lngInput.value);
+        if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          marker.setLngLat([lng, lat]);
+          pickerMap.flyTo({ center: [lng, lat], zoom: 12 });
+        }
+      }
+      latInput.addEventListener("input", syncMarkerFromInputs);
+      lngInput.addEventListener("input", syncMarkerFromInputs);
+
+      if (locateBtn) {
+        locateBtn.addEventListener("click", async () => {
+          const query = `${locInput.value || ""}, ${countryInput.value || "India"}`.trim();
+          if (!query || query === ",") {
+            alert("Please enter a Location / City first.");
+            return;
+          }
+          locateBtn.disabled = true;
+          locateBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Locating...';
+          try {
+            const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${mapTokenStr}&limit=1`);
+            const data = await res.json();
+            if (data && data.features && data.features.length > 0) {
+              const coords = data.features[0].center; // [lng, lat]
+              marker.setLngLat(coords);
+              pickerMap.flyTo({ center: coords, zoom: 13 });
+              updateInputs(coords);
+            } else {
+              alert(`No location found for "${query}". You can drag the pin on the map directly.`);
+            }
+          } catch (err) {
+            console.error("Geocoding lookup error:", err);
+            alert("Could not reach geocoding service. Please pin the location manually.");
+          } finally {
+            locateBtn.disabled = false;
+            locateBtn.innerHTML = '<i class="fa-solid fa-crosshairs me-1 text-danger"></i>Locate Address';
+          }
+        });
+      }
+
+      pickerMap.on("load", () => {
+        pickerMap.resize();
+      });
+    } catch (e) {
+      console.warn("Mapbox pin picker init warning:", e);
+    }
+  }
+</script>

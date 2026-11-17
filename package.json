@@ -1,11 +1,16 @@
 {
   "engines": {
-    "node": "v25.9.0"
+    "node": ">=20.0.0"
   },
   "name": "major-project",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "seed": "node init/seed.js",
+    "seed:100": "node init/seed100.js",
+    "init-admin": "node init/initAdmin.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

@@ -1,0 +1,183 @@
+<% layout("/layouts/boilerplate") %>
+
+<% const currentTab = 'listings'; %>
+<%- include("./adminNav.ejs", { currentTab }) %>
+
+<div class="card border-0 shadow-sm rounded-4 p-4 p-md-5 mb-5">
+  <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div>
+      <h3 class="fw-bold mb-1">Edit Listing: <%= listing.title %></h3>
+      <p class="text-muted small mb-0">Update property details, amenities, pricing, or visibility.</p>
+    </div>
+    <a href="/listings/<%= listing._id %>" target="_blank" class="btn btn-outline-dark btn-sm">
+      <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Public Preview
+    </a>
+  </div>
+
+  <form action="/admin/listings/<%= listing._id %>?_method=PUT" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+    <!-- Title & Property Type -->
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-md-8">
+        <label for="title" class="form-label fw-semibold">Property Title <span class="text-danger">*</span></label>
+        <input type="text" name="listing[title]" id="title" class="form-control" value="<%= listing.title %>" required>
+        <div class="invalid-feedback">Title is required.</div>
+      </div>
+      <div class="col-12 col-md-4">
+        <label for="propertyType" class="form-label fw-semibold">Property Type</label>
+        <% const types = ["Apartment", "Villa", "Cabin", "Cottage", "Studio", "Haveli", "House", "Resort", "Hotel", "Other"]; %>
+        <select name="listing[propertyType]" id="propertyType" class="form-select">
+          <% for (let t of types) { %>
+            <option value="<%= t %>" <%= (listing.propertyType || 'Apartment') === t ? 'selected' : '' %>><%= t %></option>
+          <% } %>
+        </select>
+      </div>
+    </div>
+
+    <!-- Description -->
+    <div class="mb-3">
+      <label for="description" class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
+      <textarea name="listing[description]" id="description" rows="4" class="form-control" required><%= listing.description %></textarea>
+      <div class="invalid-feedback">Description is required.</div>
+    </div>
+
+    <!-- Current Image & Image Upload -->
+    <div class="row g-3 mb-3 p-3 bg-light rounded-3 border align-items-center">
+      <div class="col-12 col-md-4 text-center">
+        <label class="form-label fw-semibold small d-block">Current Image Preview</label>
+        <img src="<%= listing.image && listing.image.url ? listing.image.url : '' %>" class="img-fluid rounded-3 shadow-sm" style="max-height: 140px; object-fit: cover;" alt="">
+      </div>
+      <div class="col-12 col-md-4">
+        <label for="imageFile" class="form-label fw-semibold">Replace with File Upload</label>
+        <input type="file" name="listing[image]" id="imageFile" class="form-control">
+        <small class="text-muted">Cloudinary upload (.jpg, .png)</small>
+      </div>
+      <div class="col-12 col-md-4">
+        <label for="imageUrl" class="form-label fw-semibold">Or Replace with Image URL</label>
+        <input type="url" name="listing[imageUrl]" id="imageUrl" class="form-control" placeholder="https://...">
+      </div>
+    </div>
+
+    <!-- Category, Price, and Capacity -->
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-md-4">
+        <label for="category" class="form-label fw-semibold">Category</label>
+        <% const cats = ["Trending", "Rooms", "Iconic Cities", "Mountains", "Castles", "Amazing Pools", "Camping", "Farms", "Arctic", "Domes", "Boats"]; %>
+        <select name="listing[category]" id="category" class="form-select">
+          <% for (let c of cats) { %>
+            <option value="<%= c %>" <%= listing.category === c ? 'selected' : '' %>><%= c %></option>
+          <% } %>
+        </select>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <label for="price" class="form-label fw-semibold">Price per Night (INR) <span class="text-danger">*</span></label>
+        <div class="input-group">
+          <span class="input-group-text">&#8377;</span>
+          <input type="number" name="listing[price]" id="price" min="0" class="form-control" value="<%= listing.price %>" required>
+        </div>
+        <div class="invalid-feedback">Price must be valid.</div>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <label for="maxGuests" class="form-label fw-semibold">Guest Capacity</label>
+        <input type="number" name="listing[maxGuests]" id="maxGuests" min="1" max="30" value="<%= listing.maxGuests || 2 %>" class="form-control">
+      </div>
+    </div>
+
+    <!-- Rooms Breakdown -->
+    <div class="row g-3 mb-3">
+      <div class="col-4">
+        <label for="bedrooms" class="form-label fw-semibold small">Bedrooms</label>
+        <input type="number" name="listing[bedrooms]" id="bedrooms" min="0" value="<%= listing.bedrooms || 1 %>" class="form-control">
+      </div>
+      <div class="col-4">
+        <label for="beds" class="form-label fw-semibold small">Beds</label>
+        <input type="number" name="listing[beds]" id="beds" min="1" value="<%= listing.beds || 1 %>" class="form-control">
+      </div>
+      <div class="col-4">
+        <label for="bathrooms" class="form-label fw-semibold small">Bathrooms</label>
+        <input type="number" name="listing[bathrooms]" id="bathrooms" min="1" value="<%= listing.bathrooms || 1 %>" class="form-control">
+      </div>
+    </div>
+
+    <!-- Location, Country, and Coordinates -->
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-md-6">
+        <label for="location" class="form-label fw-semibold">Location / City <span class="text-danger">*</span></label>
+        <input type="text" name="listing[location]" id="location" class="form-control" value="<%= listing.location %>" required>
+        <div class="invalid-feedback">Location is required.</div>
+      </div>
+      <div class="col-12 col-md-6">
+        <label for="country" class="form-label fw-semibold">Country <span class="text-danger">*</span></label>
+        <input type="text" name="listing[country]" id="country" class="form-control" value="<%= listing.country %>" required>
+        <div class="invalid-feedback">Country is required.</div>
+      </div>
+    </div>
+
+    <!-- Coordinates -->
+    <div class="row g-3 mb-3 p-3 bg-light rounded-3 border">
+      <div class="col-12">
+        <span class="fw-semibold small d-block">Current Coordinates [Longitude, Latitude]</span>
+        <small class="text-muted">Current: <%= listing.geometry && listing.geometry.coordinates ? listing.geometry.coordinates.join(', ') : 'Not set' %></small>
+      </div>
+      <div class="col-6">
+        <label for="latitude" class="form-label small text-muted">Latitude Override</label>
+        <input type="number" step="any" name="listing[latitude]" id="latitude" class="form-control form-control-sm" value="<%= listing.geometry && listing.geometry.coordinates ? listing.geometry.coordinates[1] : '' %>">
+      </div>
+      <div class="col-6">
+        <label for="longitude" class="form-label small text-muted">Longitude Override</label>
+        <input type="number" step="any" name="listing[longitude]" id="longitude" class="form-control form-control-sm" value="<%= listing.geometry && listing.geometry.coordinates ? listing.geometry.coordinates[0] : '' %>">
+      </div>
+    </div>
+
+    <!-- Amenities Checkboxes -->
+    <div class="mb-4">
+      <label class="form-label fw-semibold">Amenities Offered</label>
+      <div class="row g-2">
+        <% 
+          const availableAmenities = [
+            "Wifi", "Pool", "Air conditioning", "Kitchen", "Free parking", "TV",
+            "Dedicated workspace", "Mountain view", "Sea view", "Beach access",
+            "Indoor fireplace", "BBQ grill", "Balcony", "Breakfast included", "Elevator"
+          ];
+          const currentAmenities = listing.amenities || [];
+        %>
+        <% for (let a of availableAmenities) { %>
+          <div class="col-6 col-md-4">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="amenities" value="<%= a %>" id="amenity-<%= a.replace(/\s+/g, '') %>" <%= currentAmenities.includes(a) ? "checked" : "" %>>
+              <label class="form-check-label small" for="amenity-<%= a.replace(/\s+/g, '') %>">
+                <%= a %>
+              </label>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Publication Toggles -->
+    <div class="row g-3 mb-4 p-3 bg-light rounded-3 border">
+      <div class="col-6">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" name="isPublished" id="isPublished" <%= listing.isPublished !== false ? "checked" : "" %>>
+          <label class="form-check-label fw-semibold" for="isPublished">Publicly Visible</label>
+          <small class="d-block text-muted">When unchecked, listing is hidden from public exploration.</small>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" name="featured" id="featured" <%= listing.featured ? "checked" : "" %>>
+          <label class="form-check-label fw-semibold" for="featured">Featured Listing</label>
+          <small class="d-block text-muted">Promoted spotlight placement.</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-dark px-4 py-2 fw-semibold">
+        <i class="fa-solid fa-floppy-disk me-1"></i> Update Property
+      </button>
+      <a href="/admin/listings" class="btn btn-outline-secondary px-4 py-2">Cancel</a>
+    </div>
+  </form>
+</div>

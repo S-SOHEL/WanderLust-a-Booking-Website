@@ -1,0 +1,90 @@
+<% layout("/layouts/boilerplate") %>
+
+<% const currentTab = 'hosts'; %>
+<%- include("./adminNav.ejs") %>
+
+<div class="card border-0 shadow-sm rounded-4 p-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+    <div>
+      <h4 class="fw-bold mb-1">Platform Hosts</h4>
+      <p class="text-muted small mb-0">Overview of all registered property hosts and accommodation providers.</p>
+    </div>
+    <span class="badge bg-primary rounded-pill px-3 py-2 fs-6">
+      <%= hostStats.length %> <%= hostStats.length === 1 ? 'Host' : 'Hosts' %>
+    </span>
+  </div>
+
+  <% if (hostStats.length === 0) { %>
+    <div class="text-center py-5">
+      <i class="fa-solid fa-house-user text-muted mb-3" style="font-size: 3rem;"></i>
+      <h5>No Hosts Registered Yet</h5>
+      <p class="text-muted small">When users list a property, they will be registered as platform hosts.</p>
+    </div>
+  <% } else { %>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Host Details</th>
+            <th>Contact</th>
+            <th>Properties Listed</th>
+            <th>Total Bookings</th>
+            <th>Role</th>
+            <th>Joined</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (let item of hostStats) { %>
+            <tr>
+              <td>
+                <div class="d-flex align-items-center gap-3">
+                  <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold" style="width: 44px; height: 44px; background: linear-gradient(135deg, #fe424d, #ff5a5f);">
+                    <%= ((item.host.fullName || item.host.username || "H")[0]).toUpperCase() %>
+                  </div>
+                  <div>
+                    <h6 class="mb-0 fw-bold"><%= item.host.fullName || item.host.username %></h6>
+                    <small class="text-muted">@<%= item.host.username %></small>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="small">
+                  <div><i class="fa-regular fa-envelope me-1 text-muted"></i><%= item.host.email %></div>
+                  <% if (item.host.mobile) { %>
+                    <div><i class="fa-solid fa-phone me-1 text-muted"></i><%= item.host.mobile %></div>
+                  <% } %>
+                </div>
+              </td>
+              <td>
+                <span class="badge bg-dark rounded-pill px-3 py-1 font-monospace">
+                  <%= item.listingCount %> <%= item.listingCount === 1 ? 'property' : 'properties' %>
+                </span>
+              </td>
+              <td>
+                <span class="badge bg-light text-dark border rounded-pill px-3 py-1 font-monospace">
+                  <%= item.bookingsCount %> <%= item.bookingsCount === 1 ? 'stay' : 'stays' %>
+                </span>
+              </td>
+              <td>
+                <% if (item.host.role === 'admin') { %>
+                  <span class="badge bg-danger rounded-pill px-2 py-1">Admin</span>
+                <% } else { %>
+                  <span class="badge bg-primary rounded-pill px-2 py-1">Host</span>
+                <% } %>
+              </td>
+              <td class="small text-muted">
+                <%= new Date(item.host.createdAt || Date.now()).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) %>
+              </td>
+              <td class="text-end">
+                <a href="/admin/listings?search=<%= encodeURIComponent(item.host.username) %>" class="btn btn-sm btn-outline-dark rounded-pill px-3">
+                  <i class="fa-solid fa-hotel me-1"></i>View Listings
+                </a>
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>

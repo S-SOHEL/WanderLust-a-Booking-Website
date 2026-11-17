@@ -1,0 +1,236 @@
+<!-- Floating WanderAI Assistant Trigger -->
+<div id="aiWidgetContainer" class="position-fixed" style="bottom: 24px; right: 24px; z-index: 1050;">
+  <!-- Trigger Button -->
+  <button id="aiToggleBtn" class="btn text-white rounded-pill shadow-lg d-flex align-items-center gap-2 px-3 py-2 border-0" 
+          style="background: linear-gradient(135deg, #fe424d 0%, #ff5a5f 45%, #7928ca 100%); transition: transform 0.2s ease, box-shadow 0.2s ease;"
+          title="Ask WanderAI Assistant">
+    <i class="fa-solid fa-wand-magic-sparkles fs-5"></i>
+    <span class="fw-semibold d-none d-sm-inline">WanderAI</span>
+    <span class="badge bg-white text-dark rounded-pill small px-2 py-1" style="font-size: 0.68rem;">Live</span>
+  </button>
+
+  <!-- Chat Window -->
+  <div id="aiChatCard" class="card border-0 shadow-lg rounded-4 overflow-hidden position-absolute" 
+       style="bottom: 60px; right: 0; width: 370px; max-width: calc(100vw - 32px); height: 530px; max-height: calc(100vh - 120px); display: none; flex-direction: column;">
+    
+    <!-- Chat Header -->
+    <div class="card-header text-white p-3 border-0 d-flex justify-content-between align-items-center" 
+         style="background: linear-gradient(135deg, #1f1f1f 0%, #2d124d 100%);">
+      <div class="d-flex align-items-center gap-2">
+        <div class="rounded-circle d-flex align-items-center justify-content-center text-white" 
+             style="width: 36px; height: 36px; background: linear-gradient(135deg, #fe424d, #7928ca);">
+          <i class="fa-solid fa-wand-magic-sparkles small"></i>
+        </div>
+        <div>
+          <h6 class="mb-0 fw-bold fs-6">WanderAI Assistant</h6>
+          <small class="text-white-50 d-flex align-items-center gap-1" style="font-size: 0.72rem;">
+            <span class="rounded-circle bg-success d-inline-block" style="width: 7px; height: 7px;"></span>
+            Grounded in MongoDB Listings
+          </small>
+        </div>
+      </div>
+      <button id="aiCloseBtn" class="btn btn-sm btn-link text-white-50 text-decoration-none p-0 fs-5" aria-label="Close Chat">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <!-- Chat Messages Container -->
+    <div id="aiMessages" class="card-body p-3 overflow-y-auto d-flex flex-column gap-3 bg-light" style="flex: 1;">
+      <!-- Welcome Message -->
+      <div class="d-flex gap-2">
+        <div class="rounded-circle bg-dark text-white d-flex align-items-center justify-content-center flex-shrink-0" 
+             style="width: 30px; height: 30px; font-size: 0.75rem;">
+          <i class="fa-solid fa-robot"></i>
+        </div>
+        <div class="bg-white p-3 rounded-4 shadow-sm border" style="max-width: 85%; font-size: 0.88rem; line-height: 1.5;">
+          Hello! I'm your WanderLust AI concierge. Ask me for property recommendations, budget stays, or private villas across India.
+        </div>
+      </div>
+
+      <!-- Suggestion Chips -->
+      <div id="aiChipsContainer" class="d-flex flex-wrap gap-1 mt-1 ps-4">
+        <button class="btn btn-sm btn-outline-secondary rounded-pill bg-white py-1 px-2 ai-chip" style="font-size: 0.75rem;">
+          🏖️ Villas in Goa with pool
+        </button>
+        <button class="btn btn-sm btn-outline-secondary rounded-pill bg-white py-1 px-2 ai-chip" style="font-size: 0.75rem;">
+          🏔️ Cabins in Manali under ₹5000
+        </button>
+        <button class="btn btn-sm btn-outline-secondary rounded-pill bg-white py-1 px-2 ai-chip" style="font-size: 0.75rem;">
+          🏰 Heritage Havelis in Jaipur
+        </button>
+        <button class="btn btn-sm btn-outline-secondary rounded-pill bg-white py-1 px-2 ai-chip" style="font-size: 0.75rem;">
+          ☕ Coorg coffee estates
+        </button>
+      </div>
+    </div>
+
+    <!-- Typing Indicator -->
+    <div id="aiTypingIndicator" class="px-3 py-1 bg-light text-muted small d-none" style="font-size: 0.75rem;">
+      <i class="fa-solid fa-circle-notch fa-spin me-1 text-danger"></i> Searching WanderLust inventory...
+    </div>
+
+    <!-- Chat Footer Input -->
+    <div class="card-footer p-2 bg-white border-top">
+      <form id="aiChatForm" class="d-flex gap-2">
+        <input type="text" id="aiQueryInput" class="form-control form-control-sm rounded-pill px-3 border" 
+               placeholder="Ask for stays, locations, budgets..." autocomplete="off" maxlength="300" required>
+        <button type="submit" id="aiSendBtn" class="btn btn-danger btn-sm rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" 
+                style="width: 34px; height: 34px; background-color: #fe424d; border-color: #fe424d;">
+          <i class="fa-solid fa-paper-plane small"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const toggleBtn = document.getElementById("aiToggleBtn");
+    const closeBtn = document.getElementById("aiCloseBtn");
+    const chatCard = document.getElementById("aiChatCard");
+    const chatForm = document.getElementById("aiChatForm");
+    const queryInput = document.getElementById("aiQueryInput");
+    const messages = document.getElementById("aiMessages");
+    const typingIndicator = document.getElementById("aiTypingIndicator");
+    const chips = document.querySelectorAll(".ai-chip");
+
+    if (!toggleBtn || !chatCard || !chatForm) return;
+
+    // Toggle chat visibility
+    toggleBtn.addEventListener("click", () => {
+      const isVisible = chatCard.style.display === "flex";
+      chatCard.style.display = isVisible ? "none" : "flex";
+      if (!isVisible) {
+        queryInput.focus();
+        scrollToBottom();
+      }
+    });
+
+    closeBtn.addEventListener("click", () => {
+      chatCard.style.display = "none";
+    });
+
+    // Chip click handler
+    chips.forEach((chip) => {
+      chip.addEventListener("click", () => {
+        const text = chip.textContent.replace(/^[^\w]+/, "").trim();
+        queryInput.value = text;
+        submitQuery(text);
+      });
+    });
+
+    chatForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = queryInput.value.trim();
+      if (!text) return;
+      queryInput.value = "";
+      submitQuery(text);
+    });
+
+    function submitQuery(userText) {
+      // Append user bubble
+      appendMessage("user", userText);
+      typingIndicator.classList.remove("d-none");
+      scrollToBottom();
+
+      fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userText }),
+      })
+        .then((res) => {
+          if (!res.ok) {
+            return res.json().then((d) => {
+              throw new Error(d.error || "Failed to get AI response");
+            });
+          }
+          return res.json();
+        })
+        .then((data) => {
+          typingIndicator.classList.add("d-none");
+          appendAssistantReply(data);
+          scrollToBottom();
+        })
+        .catch((err) => {
+          typingIndicator.classList.add("d-none");
+          appendMessage("assistant", "⚠️ " + (err.message || "Something went wrong. Please try again."));
+          scrollToBottom();
+        });
+    }
+
+    function appendMessage(sender, text) {
+      const msgDiv = document.createElement("div");
+      msgDiv.className = "d-flex gap-2 " + (sender === "user" ? "justify-content-end" : "");
+
+      if (sender === "assistant") {
+        msgDiv.innerHTML = `
+          <div class="rounded-circle bg-dark text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 30px; height: 30px; font-size: 0.75rem;">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <div class="bg-white p-3 rounded-4 shadow-sm border" style="max-width: 85%; font-size: 0.88rem; line-height: 1.5;">
+            ${formatMarkdown(text)}
+          </div>
+        `;
+      } else {
+        msgDiv.innerHTML = `
+          <div class="bg-danger text-white p-3 rounded-4 shadow-sm" style="max-width: 80%; font-size: 0.88rem; background-color: #fe424d !important;">
+            ${escapeHtml(text)}
+          </div>
+        `;
+      }
+      messages.appendChild(msgDiv);
+    }
+
+    function appendAssistantReply(data) {
+      const msgDiv = document.createElement("div");
+      msgDiv.className = "d-flex gap-2";
+
+      let cardsHtml = "";
+      if (data.recommendations && data.recommendations.length > 0) {
+        cardsHtml = `<div class="d-flex flex-column gap-2 mt-2">`;
+        data.recommendations.forEach((item) => {
+          cardsHtml += `
+            <a href="/listings/${item._id}" target="_blank" class="text-decoration-none text-dark card border rounded-3 p-2 shadow-sm d-flex flex-row align-items-center gap-2 hover-shadow" style="background: #fafafa;">
+              <img src="${item.imageUrl || 'https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=300&q=80'}" class="rounded-2" style="width: 55px; height: 50px; object-fit: cover;" alt="">
+              <div class="overflow-hidden">
+                <span class="d-block fw-bold text-truncate" style="font-size: 0.82rem;">${escapeHtml(item.title)}</span>
+                <small class="text-muted d-block text-truncate" style="font-size: 0.72rem;">📍 ${escapeHtml(item.location)}</small>
+                <span class="fw-bold text-danger" style="font-size: 0.78rem;">₹${Number(item.price).toLocaleString("en-IN")}<small class="text-muted fw-normal"> / night</small></span>
+              </div>
+            </a>
+          `;
+        });
+        cardsHtml += `</div>`;
+      }
+
+      msgDiv.innerHTML = `
+        <div class="rounded-circle bg-dark text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 30px; height: 30px; font-size: 0.75rem;">
+          <i class="fa-solid fa-robot"></i>
+        </div>
+        <div class="bg-white p-3 rounded-4 shadow-sm border" style="max-width: 88%; font-size: 0.85rem; line-height: 1.5;">
+          <div>${formatMarkdown(data.reply || "")}</div>
+          ${cardsHtml}
+        </div>
+      `;
+      messages.appendChild(msgDiv);
+    }
+
+    function formatMarkdown(text) {
+      if (!text) return "";
+      return text
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" class="text-danger fw-semibold">$1</a>')
+        .replace(/\n/g, "<br>");
+    }
+
+    function escapeHtml(str) {
+      return (str || "").replace(/[&<>"']/g, function (m) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m];
+      });
+    }
+
+    function scrollToBottom() {
+      messages.scrollTop = messages.scrollHeight;
+    }
+  })();
+</script>

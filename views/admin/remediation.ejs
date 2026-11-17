@@ -1,0 +1,784 @@
+<% layout("/layouts/boilerplate") %>
+
+<% const currentTab = 'remediation'; %>
+<%- include("./adminNav.ejs", { currentTab }) %>
+
+<div class="container-fluid px-0 mb-5">
+  <!-- Page Header -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <h3 class="fw-bold mb-0">
+          <i class="fa-solid fa-clipboard-check text-danger me-2"></i>Controlled Geographic Remediation Queue
+        </h3>
+        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1 rounded-pill small">
+          Phase 9.3.2
+        </span>
+      </div>
+      <p class="text-muted small mb-0">
+        Review, verify, and resolve listings with geographic uncertainty, regional centroids, or title/location mismatches. All changes are logged to audit history.
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="/admin/locations" class="btn btn-outline-dark btn-sm rounded-pill px-3">
+        <i class="fa-solid fa-map-location-dot me-1"></i> Locations Dashboard
+      </a>
+      <a href="/admin/listings" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+        <i class="fa-solid fa-hotel me-1"></i> All Properties
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI Metric Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+        <span class="text-muted small text-uppercase fw-semibold d-block">Total Queue</span>
+        <h4 class="fw-bold mb-0 mt-2 text-dark"><%= stats.totalQueue %></h4>
+        <small class="text-muted">Flagged records</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white border-start border-4 border-warning">
+        <span class="text-muted small text-uppercase fw-semibold d-block">Uncertain Pin</span>
+        <h4 class="fw-bold mb-0 mt-2 text-warning"><%= stats.locationUncertain %></h4>
+        <small class="text-muted">Serengeti centroid</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white border-start border-4 border-info">
+        <span class="text-muted small text-uppercase fw-semibold d-block">Region Centroid</span>
+        <h4 class="fw-bold mb-0 mt-2 text-info"><%= stats.genericRegionCentroid %></h4>
+        <small class="text-muted">Exempt regional</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white border-start border-4 border-danger">
+        <span class="text-muted small text-uppercase fw-semibold d-block">Title Mismatch</span>
+        <h4 class="fw-bold mb-0 mt-2 text-danger"><%= stats.titleLocationMismatch %></h4>
+        <small class="text-muted">Costa Rica / Pune</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white border-start border-4 border-secondary">
+        <span class="text-muted small text-uppercase fw-semibold d-block">Test Data</span>
+        <h4 class="fw-bold mb-0 mt-2 text-secondary"><%= stats.testDataRequiresReview %></h4>
+        <small class="text-muted">Title 'sjs' Pune</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white border-start border-4 border-success">
+        <span class="text-muted small text-uppercase fw-semibold d-block">Remediated</span>
+        <h4 class="fw-bold mb-0 mt-2 text-success"><%= stats.resolvedVerified %></h4>
+        <small class="text-muted">Audit logged</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Referential Integrity Status Panel (Strict Phase 9.3.2 Requirements) -->
+  <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+    <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+      <div class="d-flex align-items-center gap-2">
+        <i class="fa-solid fa-shield-halved text-success fs-5"></i>
+        <h5 class="fw-bold mb-0">Referential Integrity & Safeguard Enforcements</h5>
+      </div>
+      <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1 rounded-pill small">
+        <i class="fa-solid fa-lock me-1"></i> Active Safeguards Verified
+      </span>
+    </div>
+
+    <div class="row g-3">
+      <!-- Historical Booking Card -->
+      <div class="col-12 col-lg-6">
+        <div class="p-3 rounded-3 border bg-light h-100">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-2 py-1 small fw-semibold">
+                Historical Booking Safeguard
+              </span>
+              <h6 class="fw-bold text-dark mb-0 mt-2">
+                Booking #<%= historicalBooking ? historicalBooking.bookingRef : 'WL-TEST4732' %>
+              </h6>
+            </div>
+            <span class="badge bg-success rounded-pill px-2 py-1 small">
+              <%= historicalBooking ? historicalBooking.status : 'Completed' %>
+            </span>
+          </div>
+
+          <p class="small text-secondary mb-2">
+            <strong>Listing:</strong> <%= historicalBooking && historicalBooking.listing ? historicalBooking.listing.title : 'Cozy Beachfront Cottage' %><br>
+            <strong>Guest Reference:</strong> <code class="text-danger"><%= historicalBooking ? historicalBooking.user : '6af415d050a9558faf18b3d8' %></code> 
+            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 ms-1">Orphaned Test Guest (Preserved)</span>
+          </p>
+
+          <div class="alert alert-warning py-2 px-3 rounded-2 small mb-0 border-0 bg-warning bg-opacity-10 text-dark">
+            <i class="fa-solid fa-circle-exclamation text-warning me-1"></i>
+            <strong>Preservation Policy:</strong> Booking remains preserved as historical record. Cannot be reassigned. The review creation middleware guarantees no active session can authorize reviews for this booking.
+          </div>
+        </div>
+      </div>
+
+      <!-- Legacy Review Card -->
+      <div class="col-12 col-lg-6">
+        <div class="p-3 rounded-3 border bg-light h-100">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill px-2 py-1 small fw-semibold">
+                Legacy Review Safeguard
+              </span>
+              <h6 class="fw-bold text-dark mb-0 mt-2">
+                Review ID: <code><%= legacyReview ? legacyReview._id : '6a73a4a9ea51345c3de0cca3' %></code>
+              </h6>
+            </div>
+            <span class="badge bg-light text-secondary border rounded-pill px-2 py-1 small">
+              <i class="fa-solid fa-clock-rotate-left me-1"></i> Legacy Review
+            </span>
+          </div>
+
+          <p class="small text-secondary mb-2">
+            <strong>Comment:</strong> "<%= legacyReview ? legacyReview.comment : 'nice' %>" (<%= legacyReview ? legacyReview.rating : 3 %>/5 &starf;)<br>
+            <strong>Property:</strong> <%= legacyReview && legacyReview.listing ? legacyReview.listing.title : 'Cozy Beachfront Cottage' %><br>
+            <strong>Author Reference:</strong> <span class="text-muted">None (Pre-launch seed data)</span>
+          </p>
+
+          <div class="alert alert-secondary py-2 px-3 rounded-2 small mb-0 border-0 bg-secondary bg-opacity-10 text-dark">
+            <i class="fa-solid fa-shield-halved text-secondary me-1"></i>
+            <strong>Integrity Policy:</strong> Badged as "Legacy Review" on property page. Cannot bypass verified-stay constraints for any user. Preserved read-only without fabrication.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category Filter Pills -->
+  <div class="d-flex flex-wrap gap-2 mb-4 align-items-center">
+    <span class="small fw-bold text-muted me-1">Filter Queue:</span>
+    <a href="/admin/remediation?category=all" class="btn btn-sm rounded-pill <%= currentCategory === 'all' ? 'btn-danger' : 'btn-outline-secondary' %>">
+      All Flagged (<%= stats.totalQueue %>)
+    </a>
+    <a href="/admin/remediation?category=LOCATION_UNCERTAIN" class="btn btn-sm rounded-pill <%= currentCategory === 'LOCATION_UNCERTAIN' ? 'btn-warning text-dark' : 'btn-outline-secondary' %>">
+      <i class="fa-solid fa-location-crosshairs me-1"></i> Location Uncertain (<%= stats.locationUncertain %>)
+    </a>
+    <a href="/admin/remediation?category=GENERIC_REGION_CENTROID" class="btn btn-sm rounded-pill <%= currentCategory === 'GENERIC_REGION_CENTROID' ? 'btn-info text-dark' : 'btn-outline-secondary' %>">
+      <i class="fa-solid fa-globe me-1"></i> Region Centroid (<%= stats.genericRegionCentroid %>)
+    </a>
+    <a href="/admin/remediation?category=TITLE_LOCATION_MISMATCH" class="btn btn-sm rounded-pill <%= currentCategory === 'TITLE_LOCATION_MISMATCH' ? 'btn-danger' : 'btn-outline-secondary' %>">
+      <i class="fa-solid fa-triangle-exclamation me-1"></i> Title Mismatch (<%= stats.titleLocationMismatch %>)
+    </a>
+    <a href="/admin/remediation?category=TEST_DATA_REQUIRES_REVIEW" class="btn btn-sm rounded-pill <%= currentCategory === 'TEST_DATA_REQUIRES_REVIEW' ? 'btn-secondary' : 'btn-outline-secondary' %>">
+      <i class="fa-solid fa-flask me-1"></i> Test Data (<%= stats.testDataRequiresReview %>)
+    </a>
+    <a href="/admin/remediation?category=RESOLVED_VERIFIED" class="btn btn-sm rounded-pill <%= currentCategory === 'RESOLVED_VERIFIED' ? 'btn-success' : 'btn-outline-secondary' %>">
+      <i class="fa-solid fa-circle-check me-1"></i> Resolved (<%= stats.resolvedVerified %>)
+    </a>
+  </div>
+
+  <!-- Listings Remediation Queue Table -->
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="min-width: 260px;">Listing & Identification</th>
+            <th style="min-width: 170px;">Classification</th>
+            <th style="min-width: 160px;">Stored Location</th>
+            <th style="min-width: 180px;">Coordinates</th>
+            <th style="min-width: 250px;">Flag Reason & Next Action</th>
+            <th style="min-width: 130px;">Review Status</th>
+            <th class="text-end" style="min-width: 160px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (listings.length === 0) { %>
+            <tr>
+              <td colspan="7" class="text-center py-5 text-muted">
+                <i class="fa-solid fa-circle-check fs-2 text-success mb-2 d-block"></i>
+                No listings in this remediation category.
+              </td>
+            </tr>
+          <% } %>
+
+          <% for (let l of listings) { %>
+            <% 
+              let badgeBg = 'bg-secondary';
+              let flagLabel = l.remediationFlag;
+              if (l.remediationFlag === 'LOCATION_UNCERTAIN') {
+                badgeBg = 'bg-warning text-dark';
+                flagLabel = 'Location Uncertain';
+              } else if (l.remediationFlag === 'GENERIC_REGION_CENTROID') {
+                badgeBg = 'bg-info bg-opacity-10 text-info border border-info border-opacity-25';
+                flagLabel = 'Regional Centroid';
+              } else if (l.remediationFlag === 'TITLE_LOCATION_MISMATCH') {
+                badgeBg = 'bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25';
+                flagLabel = 'Title Mismatch';
+              } else if (l.remediationFlag === 'TEST_DATA_REQUIRES_REVIEW') {
+                badgeBg = 'bg-dark bg-opacity-10 text-dark border border-dark border-opacity-25';
+                flagLabel = 'Test / Placeholder';
+              } else if (l.remediationFlag === 'RESOLVED_VERIFIED') {
+                badgeBg = 'bg-success bg-opacity-10 text-success border border-success border-opacity-25';
+                flagLabel = 'Remediated & Verified';
+              }
+
+              let statusBadge = 'bg-secondary';
+              if (l.remediationReviewStatus === 'PENDING_ADMIN_REVIEW') statusBadge = 'bg-warning text-dark';
+              else if (l.remediationReviewStatus === 'EXEMPT_REGIONAL') statusBadge = 'bg-info bg-opacity-10 text-info border border-info border-opacity-25';
+              else if (l.remediationReviewStatus === 'RESOLVED') statusBadge = 'bg-success bg-opacity-10 text-success border border-success border-opacity-25';
+            %>
+            <tr>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <img src="<%= (l.images && l.images.length > 0) ? l.images[0].url : (l.image && l.image.url ? l.image.url : 'https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=400&q=80') %>" 
+                       class="rounded-3 shadow-sm" style="width: 52px; height: 42px; object-fit: cover;" alt="">
+                  <div>
+                    <h6 class="mb-0 fw-bold small">
+                      <a href="/listings/<%= l._id %>" target="_blank" class="text-dark text-decoration-none">
+                        <%= l.title %>
+                      </a>
+                    </h6>
+                    <small class="text-muted d-block font-monospace" style="font-size: 0.72rem;">ID: <%= l._id %></small>
+                    <span class="badge <%= l.isPublished ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-dark' %>" style="font-size: 0.65rem;">
+                      <%= l.isPublished ? 'Published' : 'Draft / Unpublished' %>
+                    </span>
+                  </div>
+                </div>
+              </td>
+
+              <td>
+                <span class="badge <%= badgeBg %> px-2 py-1 rounded-pill small fw-semibold">
+                  <%= flagLabel %>
+                </span>
+                <% if (l.remediationFlag === 'GENERIC_REGION_CENTROID') { %>
+                  <small class="text-muted d-block mt-1" style="font-size: 0.68rem; line-height: 1.2;">
+                    <i class="fa-solid fa-circle-info text-info me-1"></i>Approximate regional centroid &mdash; not exact property address
+                  </small>
+                <% } else if (l.remediationFlag === 'LOCATION_UNCERTAIN') { %>
+                  <small class="text-warning d-block mt-1" style="font-size: 0.68rem; line-height: 1.2;">
+                    <i class="fa-solid fa-triangle-exclamation text-warning me-1"></i>Pinpoint correction required
+                  </small>
+                <% } %>
+              </td>
+
+              <td>
+                <div class="small">
+                  <span class="fw-semibold text-dark"><%= l.location %></span>
+                  <div class="text-muted"><%= l.country %></div>
+                </div>
+              </td>
+
+              <td>
+                <div class="small">
+                  <% if (l.geometry && l.geometry.coordinates && l.geometry.coordinates.length === 2) { %>
+                    <code class="text-dark">[<%= l.geometry.coordinates[0].toFixed(5) %>, <%= l.geometry.coordinates[1].toFixed(5) %>]</code>
+                    <button type="button" class="btn btn-sm btn-link p-0 text-danger ms-1 btn-preview" 
+                            data-lng="<%= l.geometry.coordinates[0] %>"
+                            data-lat="<%= l.geometry.coordinates[1] %>"
+                            data-title="<%= l.title %>"
+                            title="Preview Map Pin">
+                      <i class="fa-solid fa-map-pin"></i>
+                    </button>
+                  <% } else { %>
+                    <span class="badge bg-danger">Unset</span>
+                  <% } %>
+                </div>
+              </td>
+
+              <td style="max-width: 280px;">
+                <p class="mb-1 small text-secondary" style="line-height: 1.4;"><%= l.remediationNotes %></p>
+                <% if (l.remediationFlag === 'LOCATION_UNCERTAIN') { %>
+                  <div class="alert alert-warning py-1 px-2 rounded-2 mt-2 mb-0 border-0" style="font-size: 0.7rem; line-height: 1.3;">
+                    <strong><i class="fa-solid fa-triangle-exclamation text-warning me-1"></i>Suggested Correction (Unconfirmed):</strong><br>
+                    Suggested NP bounds: <code>[34.83300, -2.33300]</code>.<br>
+                    <span class="text-muted">Current coordinates remain untouched until explicitly confirmed by admin.</span>
+                  </div>
+                <% } %>
+                <% if (l.locationAuditHistory && l.locationAuditHistory.length > 0) { %>
+                  <div class="mt-1">
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill" style="font-size: 0.68rem;" type="button" data-bs-toggle="collapse" data-bs-target="#audit-<%= l._id %>">
+                      <i class="fa-solid fa-clock-rotate-left me-1"></i>Audit Log (<%= l.locationAuditHistory.length %>)
+                    </button>
+                    <div class="collapse mt-2" id="audit-<%= l._id %>">
+                      <div class="p-2 border rounded-2 bg-light small font-monospace" style="font-size: 0.7rem;">
+                        <% for (let a of l.locationAuditHistory) { %>
+                          <div class="mb-1 pb-1 border-bottom">
+                            <span class="text-primary fw-bold"><%= a.adminUsername %></span> (<%= new Date(a.timestamp).toLocaleString("en-IN") %>):<br>
+                            <% if (a.previousTitle && a.newTitle && a.previousTitle !== a.newTitle) { %>
+                              <span class="text-danger text-decoration-line-through">Title: "<%= a.previousTitle %>"</span> &rarr; <span class="text-success fw-bold">"<%= a.newTitle %>"</span><br>
+                            <% } %>
+                            <% if (a.previousLocation && a.newLocation && a.previousLocation !== a.newLocation) { %>
+                              <span class="text-danger text-decoration-line-through">Location: "<%= a.previousLocation %>"</span> &rarr; <span class="text-success fw-bold">"<%= a.newLocation %>"</span><br>
+                            <% } %>
+                            Old: [<%= (a.previousCoordinates || []).join(", ") %>] &rarr; New: [<%= (a.newCoordinates || []).join(", ") %>]<br>
+                            <span class="text-muted">Reason: <%= a.remediationReason %></span>
+                          </div>
+                        <% } %>
+                      </div>
+                    </div>
+                  </div>
+                <% } %>
+              </td>
+
+              <td>
+                <span class="badge <%= statusBadge %> px-2 py-1 rounded-pill small">
+                  <%= l.remediationReviewStatus %>
+                </span>
+              </td>
+
+              <td class="text-end">
+                <div class="btn-group btn-group-sm">
+                  <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 btn-remediate"
+                          data-id="<%= l._id %>"
+                          data-title="<%= l.title %>"
+                          data-location="<%= l.location %>"
+                          data-country="<%= l.country %>"
+                          data-lng="<%= (l.geometry && l.geometry.coordinates && l.geometry.coordinates.length === 2) ? l.geometry.coordinates[0] : 72.8777 %>"
+                          data-lat="<%= (l.geometry && l.geometry.coordinates && l.geometry.coordinates.length === 2) ? l.geometry.coordinates[1] : 19.076 %>"
+                          <% if (l.remediationFlag === 'LOCATION_UNCERTAIN') { %>
+                            data-suggested-lng="34.83300"
+                            data-suggested-lat="-2.33300"
+                            data-suggested-desc="Suggested Serengeti National Park centroid (~400km north of central Tanzania pin)"
+                          <% } %>>
+                    <i class="fa-solid fa-crosshairs me-1"></i>Adjust Pin
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 ms-1 btn-status"
+                          data-id="<%= l._id %>"
+                          data-title="<%= l.title %>"
+                          data-location="<%= l.location %>"
+                          data-address="<%= l.address || '' %>"
+                          data-country="<%= l.country %>"
+                          data-status="<%= l.remediationReviewStatus %>"
+                          data-notes="<%= l.remediationNotes || '' %>"
+                          data-published="<%= l.isPublished %>"
+                          title="Correct Title / Address & Update Review Status">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- REMEDIATION MAPBOX MODAL -->
+<div class="modal fade" id="remediateLocationModal" tabindex="-1" aria-labelledby="remediateLocationModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-bottom pb-3">
+        <div>
+          <h5 class="modal-title fw-bold" id="remediateLocationModalLabel">
+            <i class="fa-solid fa-crosshairs text-danger me-2"></i>Remediate Map Pin & Save Audit Entry
+          </h5>
+          <small class="text-muted" id="remediateModalSubtitle">Listing Title</small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <form id="remediateLocationForm" method="POST">
+        <input type="hidden" name="returnTo" value="remediation">
+        <div class="modal-body p-4">
+          <!-- Suggested Coordinates Alert (For Serengeti or other listings with suggestions) -->
+          <div id="modalSuggestedBox" class="alert alert-warning py-2 px-3 rounded-3 mb-3 border-0 d-none">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <strong class="d-block small"><i class="fa-solid fa-lightbulb text-warning me-1"></i>Suggested Coordinates (Unconfirmed):</strong>
+                <span class="small font-monospace text-dark fw-bold" id="modalSuggestedCoordsText">[34.83300, -2.33300]</span>
+                <span class="small text-muted d-block" id="modalSuggestedDesc">Suggested Serengeti National Park centroid</span>
+              </div>
+              <button type="button" class="btn btn-sm btn-dark rounded-pill py-1 px-3 small" id="btnApplySuggested">
+                <i class="fa-solid fa-crosshairs me-1"></i>Apply Suggested
+              </button>
+            </div>
+          </div>
+
+          <!-- Interactive Map Container -->
+          <div class="mb-3 position-relative">
+            <div id="remediationMap" style="height: 340px; border-radius: 12px; border: 1px solid #e0e0e0;"></div>
+            <div class="position-absolute bottom-0 start-0 m-2 px-3 py-1 bg-white bg-opacity-90 rounded-pill shadow-sm small text-dark border">
+              <i class="fa-solid fa-arrows-up-down-left-right text-danger me-1"></i>
+              Drag marker or click anywhere on the map to position exact coordinates.
+            </div>
+          </div>
+
+          <!-- Coordinate Inputs -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-dark">Longitude (Lng)</label>
+              <input type="number" step="any" class="form-control form-control-sm font-monospace" id="modalLng" name="longitude" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-dark">Latitude (Lat)</label>
+              <input type="number" step="any" class="form-control form-control-sm font-monospace" id="modalLat" name="latitude" required>
+            </div>
+          </div>
+
+          <!-- Address and Location Input -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-dark">Location Name / City</label>
+              <input type="text" class="form-control form-control-sm" id="modalLocation" name="location">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-dark">Country</label>
+              <input type="text" class="form-control form-control-sm" id="modalCountry" name="country">
+            </div>
+          </div>
+
+          <!-- Mandatory Remediation Reason -->
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dark">
+              Remediation Reason & Evidence <span class="text-danger">*</span>
+            </label>
+            <textarea class="form-control form-control-sm" id="modalReason" name="remediationReason" rows="2" 
+                      placeholder="Explain the geospatial evidence or rationale (e.g., Pinpointed Serengeti National Park gate coordinates based on park bounds)" required></textarea>
+            <div class="form-text small">This reason will be permanently saved into the listing's audit history log.</div>
+          </div>
+
+          <!-- Explicit Confirmation Checkbox -->
+          <div class="form-check p-3 rounded-3 bg-light border">
+            <input class="form-check-input" type="checkbox" id="confirmVerification" required>
+            <label class="form-check-label small fw-semibold text-dark" for="confirmVerification">
+              I confirm that these coordinates represent the verified physical location of this property, and I explicitly approve this change.
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer border-top pt-3">
+          <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger btn-sm rounded-pill px-4" id="submitRemediationBtn">
+            <i class="fa-solid fa-check me-1"></i>Confirm & Save Audit Record
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- TITLE, ADDRESS & STATUS REMEDIATION MODAL -->
+<div class="modal fade" id="updateStatusModal" tabindex="-1" aria-labelledby="updateStatusModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-bottom pb-3">
+        <div>
+          <h5 class="modal-title fw-bold" id="updateStatusModalLabel">
+            <i class="fa-solid fa-pen-to-square text-danger me-2"></i>Resolve Title / Address Mismatch & Review Status
+          </h5>
+          <small class="text-muted" id="statusModalSubtitle">Listing Title</small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="updateStatusForm" method="POST">
+        <div class="modal-body p-4">
+          <!-- Live Comparison & Diff Section -->
+          <div class="card border rounded-3 p-3 mb-3 bg-light">
+            <h6 class="fw-bold small mb-2 text-dark">
+              <i class="fa-solid fa-code-compare text-danger me-1"></i>Before &amp; After Review
+            </h6>
+            <div class="row g-2 small">
+              <div class="col-md-6 border-end">
+                <span class="text-muted fw-semibold d-block">Current Stored Title:</span>
+                <span class="font-monospace text-danger" id="currentTitlePreview">-</span>
+                <span class="text-muted fw-semibold d-block mt-2">Current Stored Location:</span>
+                <span class="font-monospace text-danger" id="currentLocationPreview">-</span>
+              </div>
+              <div class="col-md-6">
+                <span class="text-muted fw-semibold d-block">New Proposed Title:</span>
+                <span class="font-monospace text-success fw-bold" id="newTitlePreview">-</span>
+                <span class="text-muted fw-semibold d-block mt-2">New Proposed Location:</span>
+                <span class="font-monospace text-success fw-bold" id="newLocationPreview">-</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-dark">Title</label>
+              <input type="text" class="form-control form-control-sm" id="statusTitle" name="title" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-dark">Location / City</label>
+              <input type="text" class="form-control form-control-sm" id="statusLocation" name="location">
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-dark">Street Address</label>
+              <input type="text" class="form-control form-control-sm" id="statusAddress" name="address">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-dark">Country</label>
+              <input type="text" class="form-control form-control-sm" id="statusCountry" name="country">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dark">
+              Remediation Reason & Evidence <span class="text-danger">*</span>
+            </label>
+            <textarea class="form-control form-control-sm" id="statusReason" name="remediationReason" rows="2" 
+                      placeholder="Explain reason for title or location correction (e.g., Corrected title to match Pune location and verified property records)" required></textarea>
+            <div class="form-text small">This reason and your admin username will be permanently saved into the audit log.</div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-dark">Review Status</label>
+              <select class="form-select form-select-sm" id="statusSelect" name="remediationReviewStatus">
+                <option value="PENDING_ADMIN_REVIEW">PENDING_ADMIN_REVIEW</option>
+                <option value="EXEMPT_REGIONAL">EXEMPT_REGIONAL (Legitimate regional centroid)</option>
+                <option value="RESOLVED">RESOLVED (Audited & approved)</option>
+                <option value="IN_REVIEW">IN_REVIEW</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-dark">Publication Status</label>
+              <select class="form-select form-select-sm" id="statusIsPublished" name="isPublished">
+                <option value="true">Published (Visible on site)</option>
+                <option value="false">Unpublished (Draft / Hidden from public)</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dark">Remediation Notes</label>
+            <input type="text" class="form-control form-control-sm" id="statusNotes" name="remediationNotes">
+          </div>
+        </div>
+        <div class="modal-footer border-top pt-3">
+          <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-dark btn-sm rounded-pill px-4">
+            <i class="fa-solid fa-floppy-disk me-1"></i>Save &amp; Record Audit History
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- MAP PREVIEW MODAL -->
+<div class="modal fade" id="previewMapModal" tabindex="-1" aria-labelledby="previewMapModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-bottom pb-2">
+        <h6 class="modal-title fw-bold" id="previewMapModalLabel">Location Preview</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="previewMapContainer" style="height: 320px; width: 100%;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const mapboxToken = "<%= mapToken %>";
+  let remediationMap = null;
+  let remediationMarker = null;
+  let previewMap = null;
+  let previewMarker = null;
+
+  document.addEventListener("DOMContentLoaded", function () {
+    // Attach click listeners to Remediate buttons
+    document.querySelectorAll(".btn-remediate").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const id = this.getAttribute("data-id");
+        const title = this.getAttribute("data-title");
+        const location = this.getAttribute("data-location");
+        const country = this.getAttribute("data-country");
+        const lng = parseFloat(this.getAttribute("data-lng"));
+        const lat = parseFloat(this.getAttribute("data-lat"));
+        const suggestedLng = this.getAttribute("data-suggested-lng");
+        const suggestedLat = this.getAttribute("data-suggested-lat");
+        const suggestedDesc = this.getAttribute("data-suggested-desc");
+        openRemediateModal(id, title, location, country, lng, lat, suggestedLng, suggestedLat, suggestedDesc);
+      });
+    });
+
+    // Attach click listeners to Status / Mismatch buttons
+    document.querySelectorAll(".btn-status").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const id = this.getAttribute("data-id");
+        const title = this.getAttribute("data-title");
+        const location = this.getAttribute("data-location");
+        const address = this.getAttribute("data-address");
+        const country = this.getAttribute("data-country");
+        const status = this.getAttribute("data-status");
+        const notes = this.getAttribute("data-notes");
+        const published = this.getAttribute("data-published");
+        openStatusModal(id, title, location, address, country, status, notes, published);
+      });
+    });
+
+    // Attach click listeners to Preview buttons
+    document.querySelectorAll(".btn-preview").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const lng = parseFloat(this.getAttribute("data-lng"));
+        const lat = parseFloat(this.getAttribute("data-lat"));
+        const title = this.getAttribute("data-title");
+        previewCoordinatesOnMap(lng, lat, title);
+      });
+    });
+  });
+
+  function openRemediateModal(id, title, location, country, lng, lat, suggestedLng, suggestedLat, suggestedDesc) {
+    document.getElementById("remediateModalSubtitle").innerText = title;
+    document.getElementById("remediateLocationForm").action = "/admin/listings/" + id + "/fix-location?_method=PATCH";
+    document.getElementById("modalLng").value = Number(lng).toFixed(6);
+    document.getElementById("modalLat").value = Number(lat).toFixed(6);
+    document.getElementById("modalLocation").value = location;
+    document.getElementById("modalCountry").value = country;
+    document.getElementById("modalReason").value = "";
+    document.getElementById("confirmVerification").checked = false;
+
+    const suggestedBox = document.getElementById("modalSuggestedBox");
+    if (suggestedBox) {
+      if (suggestedLng && suggestedLat) {
+        suggestedBox.classList.remove("d-none");
+        document.getElementById("modalSuggestedCoordsText").innerText = `[${suggestedLng}, ${suggestedLat}]`;
+        document.getElementById("modalSuggestedDesc").innerText = suggestedDesc || "Suggested coordinates based on park bounds";
+        document.getElementById("btnApplySuggested").onclick = function () {
+          document.getElementById("modalLng").value = Number(suggestedLng).toFixed(6);
+          document.getElementById("modalLat").value = Number(suggestedLat).toFixed(6);
+          syncMarkerFromInputs();
+        };
+      } else {
+        suggestedBox.classList.add("d-none");
+      }
+    }
+
+    const modalEl = document.getElementById("remediateLocationModal");
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+
+    modalEl.addEventListener("shown.bs.modal", function () {
+      initOrUpdateRemediationMap(lng, lat);
+    }, { once: true });
+  }
+
+  function initOrUpdateRemediationMap(lng, lat) {
+    if (!mapboxToken || typeof mapboxgl === "undefined") {
+      return;
+    }
+    mapboxgl.accessToken = mapboxToken;
+
+    const coords = [Number(lng), Number(lat)];
+
+    if (!remediationMap) {
+      remediationMap = new mapboxgl.Map({
+        container: "remediationMap",
+        style: "mapbox://styles/mapbox/streets-v12",
+        center: coords,
+        zoom: 9,
+      });
+
+      remediationMap.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+      remediationMarker = new mapboxgl.Marker({ draggable: true, color: "#fe424d" })
+        .setLngLat(coords)
+        .addTo(remediationMap);
+
+      remediationMarker.on("dragend", onMarkerDragEnd);
+
+      remediationMap.on("click", function (e) {
+        remediationMarker.setLngLat(e.lngLat);
+        updateCoordinateInputs(e.lngLat.lng, e.lngLat.lat);
+      });
+    } else {
+      remediationMap.resize();
+      remediationMap.setCenter(coords);
+      remediationMarker.setLngLat(coords);
+    }
+  }
+
+  function onMarkerDragEnd() {
+    const lngLat = remediationMarker.getLngLat();
+    updateCoordinateInputs(lngLat.lng, lngLat.lat);
+  }
+
+  function updateCoordinateInputs(lng, lat) {
+    document.getElementById("modalLng").value = Number(lng).toFixed(6);
+    document.getElementById("modalLat").value = Number(lat).toFixed(6);
+  }
+
+  // Live update marker when coordinates typed in input
+  const lngInput = document.getElementById("modalLng");
+  const latInput = document.getElementById("modalLat");
+  if (lngInput && latInput) {
+    lngInput.addEventListener("input", syncMarkerFromInputs);
+    latInput.addEventListener("input", syncMarkerFromInputs);
+  }
+
+  function syncMarkerFromInputs() {
+    const lng = parseFloat(document.getElementById("modalLng").value);
+    const lat = parseFloat(document.getElementById("modalLat").value);
+    if (!isNaN(lng) && !isNaN(lat) && lng >= -180 && lng <= 180 && lat >= -90 && lat <= 90) {
+      if (remediationMarker && remediationMap) {
+        remediationMarker.setLngLat([lng, lat]);
+        remediationMap.easeTo({ center: [lng, lat] });
+      }
+    }
+  }
+
+  function openStatusModal(id, title, location, address, country, status, notes, published) {
+    document.getElementById("statusModalSubtitle").innerText = title;
+    document.getElementById("updateStatusForm").action = "/admin/remediation/" + id + "/status?_method=PATCH";
+    document.getElementById("currentTitlePreview").innerText = title;
+    document.getElementById("currentLocationPreview").innerText = (location || "") + (country ? ", " + country : "");
+    document.getElementById("newTitlePreview").innerText = title;
+    document.getElementById("newLocationPreview").innerText = (location || "") + (country ? ", " + country : "");
+
+    document.getElementById("statusTitle").value = title;
+    document.getElementById("statusLocation").value = location || "";
+    document.getElementById("statusAddress").value = address || "";
+    document.getElementById("statusCountry").value = country || "";
+    document.getElementById("statusSelect").value = status;
+    document.getElementById("statusNotes").value = notes || "";
+    document.getElementById("statusReason").value = "";
+    if (document.getElementById("statusIsPublished")) {
+      document.getElementById("statusIsPublished").value = (published === "true" || published === true) ? "true" : "false";
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById("updateStatusModal"));
+    modal.show();
+  }
+
+  // Live diff updates for Title / Location Mismatch modal
+  document.getElementById("statusTitle")?.addEventListener("input", function() {
+    document.getElementById("newTitlePreview").innerText = this.value || "-";
+  });
+  document.getElementById("statusLocation")?.addEventListener("input", function() {
+    const country = document.getElementById("statusCountry")?.value || "";
+    document.getElementById("newLocationPreview").innerText = this.value + (country ? ", " + country : "");
+  });
+  document.getElementById("statusCountry")?.addEventListener("input", function() {
+    const loc = document.getElementById("statusLocation")?.value || "";
+    document.getElementById("newLocationPreview").innerText = loc + (this.value ? ", " + this.value : "");
+  });
+
+  function previewCoordinatesOnMap(lng, lat, title) {
+    const coords = [Number(lng), Number(lat)];
+    document.getElementById("previewMapModalLabel").innerText = title;
+    const modalEl = document.getElementById("previewMapModal");
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+
+    modalEl.addEventListener("shown.bs.modal", function () {
+      if (!mapboxToken || typeof mapboxgl === "undefined") return;
+      mapboxgl.accessToken = mapboxToken;
+      if (!previewMap) {
+        previewMap = new mapboxgl.Map({
+          container: "previewMapContainer",
+          style: "mapbox://styles/mapbox/streets-v12",
+          center: coords,
+          zoom: 8,
+        });
+        previewMarker = new mapboxgl.Marker({ color: "#fe424d" }).setLngLat(coords).addTo(previewMap);
+      } else {
+        previewMap.resize();
+        previewMap.setCenter(coords);
+        previewMarker.setLngLat(coords);
+      }
+    }, { once: true });
+  }
+</script>

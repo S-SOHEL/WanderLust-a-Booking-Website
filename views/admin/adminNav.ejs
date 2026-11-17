@@ -1,0 +1,73 @@
+<div class="bg-dark text-white py-3 px-4 mb-4 rounded-4 shadow-sm admin-subnav">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div class="d-flex align-items-center gap-2">
+      <div class="badge bg-danger px-3 py-2 text-uppercase fs-6" style="background-color: #fe424d !important;">
+        <i class="fa-solid fa-shield-halved me-1"></i> Admin Portal
+      </div>
+      <span class="text-white-50 d-none d-md-inline">| Platform Management</span>
+    </div>
+
+    <ul class="nav nav-pills gap-1 flex-wrap">
+      <li class="nav-item">
+        <a class="nav-link text-white <%= typeof currentTab !== 'undefined' && currentTab === 'dashboard' ? 'active bg-danger' : '' %>" href="/admin/dashboard">
+          <i class="fa-solid fa-chart-line me-1"></i> Dashboard
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white position-relative <%= typeof currentTab !== 'undefined' && currentTab === 'listings' ? 'active bg-danger' : '' %>" href="/admin/listings">
+          <i class="fa-solid fa-hotel me-1"></i> Properties
+          <% if (typeof pendingListingsCount !== 'undefined' && pendingListingsCount > 0) { %>
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
+              <%= pendingListingsCount %>
+            </span>
+          <% } %>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white <%= typeof currentTab !== 'undefined' && currentTab === 'approvals' ? 'active bg-danger' : '' %>" href="/admin/listings?status=pending">
+          <i class="fa-solid fa-hourglass-half me-1"></i> Approvals
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white position-relative <%= typeof currentTab !== 'undefined' && currentTab === 'bookings' ? 'active bg-danger' : '' %>" href="/admin/bookings">
+          <i class="fa-solid fa-calendar-check me-1"></i> Bookings
+          <% if (typeof pendingBookingsCount !== 'undefined' && pendingBookingsCount > 0) { %>
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
+              <%= pendingBookingsCount %>
+            </span>
+          <% } %>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white <%= typeof currentTab !== 'undefined' && currentTab === 'hosts' ? 'active bg-danger' : '' %>" href="/admin/hosts">
+          <i class="fa-solid fa-house-user me-1"></i> Hosts
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white <%= typeof currentTab !== 'undefined' && currentTab === 'locations' ? 'active bg-danger' : '' %>" href="/admin/locations">
+          <i class="fa-solid fa-map-location-dot me-1"></i> Locations
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white position-relative <%= typeof currentTab !== 'undefined' && currentTab === 'remediation' ? 'active bg-danger' : '' %>" href="/admin/remediation">
+          <i class="fa-solid fa-clipboard-check me-1"></i> Remediation
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white <%= typeof currentTab !== 'undefined' && currentTab === 'users' ? 'active bg-danger' : '' %>" href="/admin/users">
+          <i class="fa-solid fa-users me-1"></i> Users
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white <%= typeof currentTab !== 'undefined' && currentTab === 'reviews' ? 'active bg-danger' : '' %>" href="/admin/reviews">
+          <i class="fa-regular fa-star me-1"></i> Reviews
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white-50" href="/listings" target="_blank" title="View Public Website">
+          <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> View Site
+        </a>
+      </li>
+    </ul>
+  </div>
+</div>

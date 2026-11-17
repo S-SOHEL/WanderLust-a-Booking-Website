@@ -1,53 +1,140 @@
+<nav class="navbar navbar-expand-md sticky-top py-2 bg-white">
+  <div class="container-fluid px-lg-4 px-3">
+    <!-- Left: Brand Logo & Wordmark + Find Homes -->
+    <div class="d-flex align-items-center">
+      <a class="navbar-brand d-flex align-items-center text-decoration-none py-0 me-3" href="/listings">
+        <div class="brand-icon-wrapper">
+          <i class="fa-solid fa-hotel" style="font-size: 1.15rem;"></i>
+        </div>
+        <span class="brand-text">WanderLust</span>
+      </a>
 
-<style>
- 
-</style>
+      <div class="d-none d-md-flex align-items-center">
+        <a class="nav-link d-flex align-items-center gap-1" href="/listings">
+          <i class="fa-solid fa-house-chimney text-muted me-1" style="font-size: 0.85rem;"></i>
+          <span>Find Homes</span>
+        </a>
+      </div>
+    </div>
 
-<nav class="navbar navbar-expand-md bg-body-light border-bottom sticky-top">
-  <div class="container-fluid">
-    <a class="navbar-brand" href="/listings"><i class="fa-regular fa-compass"></i></a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
+    <!-- Mobile Hamburger Toggle -->
+    <button class="navbar-toggler border-0 shadow-none p-1" type="button" data-bs-toggle="collapse" data-bs-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
-   <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
 
-  <!-- Left nav links -->
-  <div class="navbar-nav">
-    <a class="nav-link" href="/listings">Explore</a>
-  </div>
+    <!-- Right Actions / User Navigation -->
+    <div class="collapse navbar-collapse" id="navbarResponsive">
+      <div class="navbar-nav ms-auto align-items-md-center gap-2 pt-2 pt-md-0">
+        <!-- Host link -->
+        <a class="nav-link nav-link-host px-3 text-nowrap" href="/listings/new">
+          <span class="d-none d-lg-inline">Airbnb your home</span>
+          <span class="d-lg-none">List your property</span>
+        </a>
 
-  <!-- Category filters - CENTER mein -->
-  <div class="category-filters mx-auto">
-    <div class="category-item active">
-      <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f30d.png" class="icon" alt="All">
-      <span>All</span>
-    </div>
-    <div class="category-item">
-      <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f3e0.png" class="icon" alt="Homes">
-      <span>Homes</span>
-    </div>
-    <div class="category-item">
-      <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f388.png" class="icon" alt="Experiences">
-      <span>Experiences</span>
-    </div>
-    <div class="category-item">
-      <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f6ce.png" class="icon" alt="Services">
-      <span>Services</span>
-    </div>
-  </div>
+        <% if (currUser) { %>
+          <!-- Admin Portal Quick Pill (for Admins) -->
+          <% if (currUser.role === 'admin') { %>
+            <a class="nav-link text-danger fw-bold position-relative px-2 text-nowrap" href="/admin/dashboard" title="Admin Portal">
+              <i class="fa-solid fa-shield-halved me-1"></i>Admin Portal
+              <% if (typeof pendingBookingsCount !== 'undefined' && pendingBookingsCount > 0) { %>
+                <span class="badge rounded-pill bg-danger ms-1" style="font-size: 0.65rem;">
+                  <%= pendingBookingsCount %>
+                </span>
+              <% } %>
+            </a>
+          <% } %>
 
-  <!-- Right auth links -->
-  <div class="navbar-nav ms-auto">
-    <a class="nav-link" href="/listings/new">Airbnb Your Home</a>
-    <% if (!currUser) { %>
-      <a class="nav-link" href="/signup"><b>Sign up</b></a>
-      <a class="nav-link" href="/login"><b>Log in</b></a>
-    <% } %>
-    <% if (currUser) { %>
-      <a class="nav-link" href="/logout"><b>Log out</b></a>
-    <% } %>
-  </div>
+          <!-- My Trips Link -->
+          <a class="nav-link px-3 text-nowrap" href="/bookings">
+            <i class="fa-solid fa-suitcase-rolling me-1 text-muted"></i>My Trips
+          </a>
 
-</div>
+          <!-- User Menu Pill Dropdown (Airbnb style) -->
+          <div class="dropdown ms-md-1">
+            <button class="user-menu-btn dropdown-toggle border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="userMenuDropdown">
+              <i class="fa-solid fa-bars text-secondary" style="font-size: 13px;"></i>
+              <% if (currUser.profileImage && currUser.profileImage.url) { %>
+                <img src="<%= currUser.profileImage.url %>" class="user-menu-avatar" alt="<%= currUser.fullName || currUser.username %>">
+              <% } else { %>
+                <div class="user-menu-avatar" style="background: linear-gradient(135deg, #fe424d, #ff5a5f);">
+                  <%= ((currUser.fullName && currUser.fullName.trim()) ? currUser.fullName.trim()[0] : (currUser.username || "U")[0]).toUpperCase() %>
+                </div>
+              <% } %>
+            </button>
+
+            <ul class="dropdown-menu dropdown-menu-end user-dropdown-menu shadow-lg" aria-labelledby="userMenuDropdown">
+              <li class="user-dropdown-header">
+                <div class="fw-bold text-dark text-truncate" style="max-width: 200px;">
+                  <%= currUser.fullName && currUser.fullName.trim() ? currUser.fullName.trim() : (currUser.username || "Guest User") %>
+                </div>
+                <div class="text-muted small text-truncate" style="max-width: 200px; font-size: 0.75rem;">
+                  <%= currUser.email %>
+                </div>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/bookings">
+                  <i class="fa-solid fa-suitcase-rolling me-2 text-muted"></i>My Trips / Bookings
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/profile#wishlist">
+                  <i class="fa-solid fa-heart me-2 text-danger"></i>My Wishlist
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/profile">
+                  <i class="fa-regular fa-user me-2 text-muted"></i>Manage Profile
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/listings/new">
+                  <i class="fa-solid fa-house-chimney-medical me-2 text-muted"></i>List a Property
+                </a>
+              </li>
+              <% if (currUser.role === 'admin') { %>
+                <li><hr class="dropdown-divider my-1"></li>
+                <li>
+                  <a class="dropdown-item text-danger fw-bold" href="/admin/dashboard">
+                    <i class="fa-solid fa-shield-halved me-2"></i>Admin Dashboard
+                  </a>
+                </li>
+              <% } %>
+              <li><hr class="dropdown-divider my-1"></li>
+              <li>
+                <a class="dropdown-item text-danger" href="/logout">
+                  <i class="fa-solid fa-arrow-right-from-bracket me-2"></i>Log out
+                </a>
+              </li>
+            </ul>
+          </div>
+        <% } else { %>
+          <!-- Logged Out User Menu Pill Dropdown -->
+          <div class="dropdown ms-md-1">
+            <button class="user-menu-btn dropdown-toggle border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="loggedOutMenuDropdown">
+              <i class="fa-solid fa-bars text-secondary" style="font-size: 13px;"></i>
+              <div class="user-menu-avatar" style="background-color: #717171;">
+                <i class="fa-solid fa-user text-white" style="font-size: 13px;"></i>
+              </div>
+            </button>
+
+            <ul class="dropdown-menu dropdown-menu-end user-dropdown-menu shadow-lg" aria-labelledby="loggedOutMenuDropdown">
+              <li>
+                <a class="dropdown-item fw-bold" href="/signup">Sign up</a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/login">Log in</a>
+              </li>
+              <li><hr class="dropdown-divider my-1"></li>
+              <li>
+                <a class="dropdown-item" href="/listings/new">Airbnb your home</a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/listings">Find Homes</a>
+              </li>
+            </ul>
+          </div>
+        <% } %>
+      </div>
+    </div>
   </div>
 </nav>

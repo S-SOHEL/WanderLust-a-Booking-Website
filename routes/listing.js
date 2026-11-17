@@ -1,70 +1,54 @@
 const express = require("express");
 const router = express.Router();
-const Listing = require("../models/listing.js");
 const wrapAsync = require("../utils/wrapAsync.js");
-// const { validateListing } = require("../middleware");
 const { isLoggedIn, isOwner, validateListing } = require("../middleware.js");
 const listingController = require("../controller/listing.js");
-const multer  = require('multer');
-const {storage} = require("../cloudConfig.js");
-const upload = multer({ storage });
+const { upload } = require("../cloudConfig.js");
 
-
-
-
+// Index & Create Route
 router
   .route("/")
-  .get(
-    wrapAsync(listingController.index))
-  .post(isLoggedIn,
-    upload.single("listing[image]"),
+  .get(wrapAsync(listingController.index))
+  .post(
+    isLoggedIn,
+    upload.any(),
     validateListing,
     wrapAsync(listingController.createListing)
   );
 
+// Search Route (MUST be defined before /:id)
+router.get("/search", wrapAsync(listingController.searchListings));
 
-    
-//New Route
-router.get("/new", isLoggedIn, listingController.renderNewForm
-);
+// New Route (MUST be defined before /:id)
+router.get("/new", isLoggedIn, listingController.renderNewForm);
 
+// Show, Update & Delete Routes
 router
   .route("/:id")
-  .get(wrapAsync(listingController.showListing)
-  )
-  .put(isLoggedIn,
+  .get(wrapAsync(listingController.showListing))
+  .put(
+    isLoggedIn,
     isOwner,
-    upload.single("listing[image]"),
+    upload.any(),
     validateListing,
-    wrapAsync(listingController.updateListing))
-
-  .delete(isLoggedIn,
+    wrapAsync(listingController.updateListing)
+  )
+  .delete(
+    isLoggedIn,
     isOwner,
-    wrapAsync(listingController.destroyListing));
+    wrapAsync(listingController.destroyListing)
+  );
 
-
-
-//Index Route
-
-
-
-//Show Route
-
-
-
-
-//Create Route
-
-
-//Edit Route
-router.get("/:id/edit", isLoggedIn,
+// Edit Route
+router.get(
+  "/:id/edit",
+  isLoggedIn,
   isOwner,
-  wrapAsync(listingController.renderEditForm));
+  wrapAsync(listingController.renderEditForm)
+);
 
-//Update Route
-
-
-//Delete Route
-
+// Wishlist Persistence Routes
+router.post("/:id/wishlist", isLoggedIn, wrapAsync(listingController.toggleWishlist));
+router.delete("/:id/wishlist", isLoggedIn, wrapAsync(listingController.removeFromWishlist));
 
 module.exports = router;

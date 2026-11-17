@@ -1,0 +1,156 @@
+<% layout("/layouts/boilerplate") %>
+
+<% const currentTab = 'bookings'; %>
+<%- include("./adminNav.ejs", { currentTab }) %>
+
+<div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <h4 class="fw-bold mb-1">Reservation Request Management</h4>
+      <p class="text-muted small mb-0">Total reservations in pipeline: <%= bookings.length %></p>
+    </div>
+  </div>
+
+  <!-- Filter & Search Controls -->
+  <form method="GET" action="/admin/bookings" class="row g-2 mb-4 bg-light p-3 rounded-3 border">
+    <div class="col-12 col-md-5">
+      <div class="input-group">
+        <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+        <input type="text" name="search" class="form-control" placeholder="Search by booking reference (e.g. WL-)..." value="<%= search %>">
+      </div>
+    </div>
+    <div class="col-6 col-md-4">
+      <select name="status" class="form-select">
+        <option value="all" <%= status === 'all' ? 'selected' : '' %>>All Statuses</option>
+        <option value="Pending" <%= status === 'Pending' ? 'selected' : '' %>>Pending Approval</option>
+        <option value="Confirmed" <%= status === 'Confirmed' ? 'selected' : '' %>>Confirmed / Approved</option>
+        <option value="Completed" <%= status === 'Completed' ? 'selected' : '' %>>Completed Stays</option>
+        <option value="Rejected" <%= status === 'Rejected' ? 'selected' : '' %>>Rejected</option>
+        <option value="Cancelled" <%= status === 'Cancelled' ? 'selected' : '' %>>Cancelled</option>
+      </select>
+    </div>
+    <div class="col-6 col-md-3 d-flex gap-2">
+      <button type="submit" class="btn btn-dark w-100">Filter</button>
+      <a href="/admin/bookings" class="btn btn-outline-secondary">Reset</a>
+    </div>
+  </form>
+
+  <% if (bookings.length === 0) { %>
+    <div class="text-center py-5">
+      <i class="fa-regular fa-calendar-xmark text-muted" style="font-size: 3rem;"></i>
+      <h5 class="mt-3">No bookings found</h5>
+      <p class="text-muted small">Try selecting a different filter or wait for guests to submit booking requests.</p>
+    </div>
+  <% } else { %>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Reference</th>
+            <th>Property</th>
+            <th>Guest</th>
+            <th>Dates</th>
+            <th>Nights & Guests</th>
+            <th>Price Total</th>
+            <th>Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (let b of bookings) { %>
+            <tr>
+              <td>
+                <span class="badge bg-dark font-monospace fs-6"><%= b.bookingRef %></span>
+                <small class="d-block text-muted mt-1"><%= new Date(b.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) %></small>
+              </td>
+              <td>
+                <div class="d-flex align-items-center">
+                  <img src="<%= b.listing && b.listing.image && b.listing.image.url ? b.listing.image.url : '' %>" class="rounded-3 me-2" style="width: 50px; height: 42px; object-fit: cover;" alt="">
+                  <div>
+                    <span class="fw-bold d-block text-truncate" style="max-width: 170px;">
+                      <%= b.listing ? b.listing.title : 'Removed' %>
+                    </span>
+                    <small class="text-muted"><%= b.listing ? b.listing.location : '' %></small>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="fw-semibold d-block"><%= b.user ? b.user.username : 'Unknown' %></span>
+                <small class="text-muted"><%= b.user ? b.user.email : '' %></small>
+              </td>
+              <td>
+                <small class="fw-semibold d-block">
+                  <%= new Date(b.checkIn).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) %>
+                </small>
+                <small class="text-muted">
+                  to <%= new Date(b.checkOut).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) %>
+                </small>
+              </td>
+              <td>
+                <small class="d-block"><%= b.totalNights %> night(s)</small>
+                <small class="text-muted"><%= b.totalGuests %> guest(s)</small>
+              </td>
+              <td>
+                <span class="fw-bold d-block">&#8377;<%= b.totalPrice ? b.totalPrice.toLocaleString("en-IN") : 0 %></span>
+                <small class="text-muted">incl. 18% GST</small>
+              </td>
+              <td>
+                <% if (b.status === 'Pending') { %>
+                  <span class="badge bg-warning text-dark px-2 py-1"><i class="fa-solid fa-clock me-1"></i>Pending</span>
+                <% } else if (b.status === 'Confirmed') { %>
+                  <span class="badge bg-success px-2 py-1"><i class="fa-solid fa-check me-1"></i>Confirmed</span>
+                <% } else if (b.status === 'Completed') { %>
+                  <span class="badge bg-primary px-2 py-1"><i class="fa-solid fa-flag-checkered me-1"></i>Completed</span>
+                <% } else if (b.status === 'Rejected') { %>
+                  <span class="badge bg-danger px-2 py-1" title="<%= b.rejectionReason %>"><i class="fa-solid fa-xmark me-1"></i>Rejected</span>
+                  <% if (b.rejectionReason) { %>
+                    <small class="d-block text-muted text-truncate" style="max-width: 120px;"><%= b.rejectionReason %></small>
+                  <% } %>
+                <% } else { %>
+                  <span class="badge bg-secondary px-2 py-1"><i class="fa-solid fa-ban me-1"></i>Cancelled</span>
+                <% } %>
+              </td>
+              <td class="text-end">
+                <% if (b.status === 'Pending') { %>
+                  <form action="/admin/bookings/<%= b._id %>/approve?_method=PATCH" method="POST" class="d-inline">
+                    <button class="btn btn-sm btn-success me-1 px-3" title="Approve Reservation">
+                      <i class="fa-solid fa-check me-1"></i> Approve
+                    </button>
+                  </form>
+                  <button class="btn btn-sm btn-outline-danger px-3" data-bs-toggle="modal" data-bs-target="#rejectBooking-<%= b._id %>" title="Reject Reservation">
+                    <i class="fa-solid fa-xmark me-1"></i> Reject
+                  </button>
+
+                  <!-- Reject Modal -->
+                  <div class="modal fade text-start" id="rejectBooking-<%= b._id %>" tabindex="-1">
+                    <div class="modal-dialog">
+                      <div class="modal-content">
+                        <form action="/admin/bookings/<%= b._id %>/reject?_method=PATCH" method="POST">
+                          <div class="modal-header">
+                            <h5 class="modal-title">Reject Request #<%= b.bookingRef %></h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                          </div>
+                          <div class="modal-body">
+                            <p class="small text-muted mb-2">Guest: <strong><%= b.user ? b.user.username : '' %></strong> (<%= b.user ? b.user.email : '' %>)</p>
+                            <label class="form-label fw-semibold">Reason for rejection (shared with guest)</label>
+                            <textarea name="rejectionReason" class="form-control" rows="3" placeholder="E.g., Property undergoing maintenance, dates unavailable, etc."></textarea>
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-danger btn-sm">Confirm Rejection</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                <% } else { %>
+                  <span class="text-muted small"><i class="fa-solid fa-check-double me-1"></i>Resolved</span>
+                <% } %>
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>

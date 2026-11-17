@@ -1,0 +1,59 @@
+<% layout("/layouts/boilerplate") %>
+
+<div class="row mt-5 mb-5 justify-content-center">
+  <div class="col-12 col-md-6 col-lg-5">
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+      <div class="bg-dark text-white p-4 text-center">
+        <div class="rounded-circle bg-danger text-white d-inline-flex align-items-center justify-content-center mb-2" style="width: 56px; height: 56px; font-size: 1.5rem; background-color: #fe424d !important;">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h4 class="fw-bold mb-1">Admin Portal Access</h4>
+        <p class="text-white-50 small mb-0">Sign in with administrative credentials</p>
+      </div>
+
+      <div class="card-body p-4 p-md-5">
+        <form action="/admin/login" method="POST" class="needs-validation" novalidate>
+          <div class="mb-3">
+            <label for="username" class="form-label fw-semibold">Admin Email, Mobile, or Username</label>
+            <div class="input-group">
+              <span class="input-group-text bg-light"><i class="fa-solid fa-user-shield text-muted"></i></span>
+              <input 
+                class="form-control" 
+                id="username"
+                name="username" 
+                type="text" 
+                placeholder="shaikhsohel6786@gmail.com or username"
+                required />
+            </div>
+            <div class="invalid-feedback">Please enter your admin email, mobile, or username.</div>
+          </div>
+
+          <div class="mb-4">
+            <label for="password" class="form-label fw-semibold">Password</label>
+            <div class="input-group">
+              <span class="input-group-text bg-light"><i class="fa-solid fa-key text-muted"></i></span>
+              <input 
+                class="form-control"
+                id="password"
+                name="password"
+                type="password"
+                placeholder="Enter admin password"
+                required />
+            </div>
+            <div class="invalid-feedback">Please enter your password.</div>
+          </div>
+
+          <button class="btn btn-dark w-100 py-3 fw-bold rounded-3 mb-3 shadow-sm">
+            <i class="fa-solid fa-right-to-bracket me-2"></i>Sign In to Admin Console
+          </button>
+        </form>
+
+        <div class="text-center pt-2 border-top">
+          <small class="text-muted">
+            Looking for public login? <a href="/login" class="text-danger fw-semibold" style="color: #fe424d !important;">Standard User Login</a>
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,283 @@
+<% layout("/layouts/boilerplate") %>
+
+<% const currentTab = 'dashboard'; %>
+<%- include("./adminNav.ejs", { currentTab }) %>
+
+<% if (stats.pendingListings && stats.pendingListings > 0) { %>
+  <div class="alert alert-warning border-0 shadow-sm rounded-4 p-3 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <div class="d-flex align-items-center">
+      <i class="fa-solid fa-bell fs-4 me-3 text-warning"></i>
+      <div>
+        <h6 class="fw-bold mb-0"><%= stats.pendingListings %> Property Listing(s) Pending Review</h6>
+        <small class="text-muted">Host submissions are awaiting your administrative review and approval before becoming public.</small>
+      </div>
+    </div>
+    <a href="/admin/listings?status=pending" class="btn btn-dark btn-sm fw-semibold rounded-pill px-3">
+      Review Submissions <i class="fa-solid fa-arrow-right ms-1"></i>
+    </a>
+  </div>
+<% } %>
+
+<!-- Metric Overview Cards -->
+<div class="row g-3 mb-4">
+  <!-- Total Listings -->
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span class="text-muted small text-uppercase fw-bold" style="font-size: 11px;">Properties</span>
+          <h3 class="fw-bold mb-0 mt-1"><%= stats.totalListings %></h3>
+        </div>
+        <div class="rounded-3 bg-danger bg-opacity-10 text-danger p-2 fs-4">
+          <i class="fa-solid fa-hotel"></i>
+        </div>
+      </div>
+      <small class="text-success mt-2 d-block" style="font-size: 11px;">
+        <i class="fa-solid fa-circle-check me-1"></i><%= stats.publishedListings || 0 %> Live
+      </small>
+    </div>
+  </div>
+
+  <!-- Total Users -->
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span class="text-muted small text-uppercase fw-bold" style="font-size: 11px;">Users</span>
+          <h3 class="fw-bold mb-0 mt-1"><%= stats.totalUsers %></h3>
+        </div>
+        <div class="rounded-3 bg-primary bg-opacity-10 text-primary p-2 fs-4">
+          <i class="fa-solid fa-users"></i>
+        </div>
+      </div>
+      <a href="/admin/users" class="small text-primary fw-semibold mt-2 text-decoration-none d-inline-block" style="font-size: 11px;">
+        Manage &rarr;
+      </a>
+    </div>
+  </div>
+
+  <!-- Total Hosts -->
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span class="text-muted small text-uppercase fw-bold" style="font-size: 11px;">Hosts</span>
+          <h3 class="fw-bold mb-0 mt-1"><%= stats.totalHosts || 0 %></h3>
+        </div>
+        <div class="rounded-3 bg-info bg-opacity-10 text-info p-2 fs-4">
+          <i class="fa-solid fa-house-user"></i>
+        </div>
+      </div>
+      <a href="/admin/hosts" class="small text-info fw-semibold mt-2 text-decoration-none d-inline-block" style="font-size: 11px;">
+        View hosts &rarr;
+      </a>
+    </div>
+  </div>
+
+  <!-- Total Bookings -->
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span class="text-muted small text-uppercase fw-bold" style="font-size: 11px;">Bookings</span>
+          <h3 class="fw-bold mb-0 mt-1"><%= stats.totalBookings %></h3>
+        </div>
+        <div class="rounded-3 bg-warning bg-opacity-10 text-warning p-2 fs-4">
+          <i class="fa-solid fa-calendar-check"></i>
+        </div>
+      </div>
+      <a href="/admin/bookings" class="small text-warning fw-semibold mt-2 text-decoration-none d-inline-block" style="font-size: 11px;">
+        Review &rarr;
+      </a>
+    </div>
+  </div>
+
+  <!-- Reviews -->
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span class="text-muted small text-uppercase fw-bold" style="font-size: 11px;">Reviews</span>
+          <h3 class="fw-bold mb-0 mt-1"><%= stats.totalReviews || 0 %></h3>
+        </div>
+        <div class="rounded-3 bg-secondary bg-opacity-10 text-secondary p-2 fs-4">
+          <i class="fa-regular fa-star"></i>
+        </div>
+      </div>
+      <a href="/admin/reviews" class="small text-secondary fw-semibold mt-2 text-decoration-none d-inline-block" style="font-size: 11px;">
+        Moderate &rarr;
+      </a>
+    </div>
+  </div>
+
+  <!-- Gross Booking Volume -->
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span class="text-muted small text-uppercase fw-bold" style="font-size: 11px;">Volume</span>
+          <h3 class="fw-bold mb-0 mt-1 text-success fs-5">&#8377;<%= stats.totalRevenue.toLocaleString("en-IN") %></h3>
+        </div>
+        <div class="rounded-3 bg-success bg-opacity-10 text-success p-2 fs-4">
+          <i class="fa-solid fa-indian-rupee-sign"></i>
+        </div>
+      </div>
+      <small class="text-muted mt-2 d-block" style="font-size: 11px;">Gross Volume</small>
+    </div>
+  </div>
+</div>
+
+<!-- Booking Lifecycle Pipeline Status Breakdown -->
+<div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-light">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h6 class="fw-bold mb-0">Booking Lifecycle Pipeline</h6>
+    <span class="small text-muted">All active, completed, and historic bookings</span>
+  </div>
+
+  <div class="row g-3 text-center">
+    <div class="col-6 col-md">
+      <div class="p-3 bg-white rounded-3 shadow-sm border-start border-warning border-4">
+        <span class="badge bg-warning text-dark px-2 py-1 mb-1">Pending</span>
+        <h4 class="fw-bold my-1 text-warning"><%= stats.pendingBookings %></h4>
+        <small class="text-muted" style="font-size: 11px;">Awaiting Review</small>
+      </div>
+    </div>
+    <div class="col-6 col-md">
+      <div class="p-3 bg-white rounded-3 shadow-sm border-start border-success border-4">
+        <span class="badge bg-success px-2 py-1 mb-1">Confirmed</span>
+        <h4 class="fw-bold my-1 text-success"><%= stats.confirmedBookings %></h4>
+        <small class="text-muted" style="font-size: 11px;">Active / Upcoming</small>
+      </div>
+    </div>
+    <div class="col-6 col-md">
+      <div class="p-3 bg-white rounded-3 shadow-sm border-start border-primary border-4">
+        <span class="badge bg-primary px-2 py-1 mb-1">Completed</span>
+        <h4 class="fw-bold my-1 text-primary"><%= stats.completedBookings || 0 %></h4>
+        <small class="text-muted" style="font-size: 11px;">Stay Completed</small>
+      </div>
+    </div>
+    <div class="col-6 col-md">
+      <div class="p-3 bg-white rounded-3 shadow-sm border-start border-danger border-4">
+        <span class="badge bg-danger px-2 py-1 mb-1">Rejected</span>
+        <h4 class="fw-bold my-1 text-danger"><%= stats.rejectedBookings %></h4>
+        <small class="text-muted" style="font-size: 11px;">Declined</small>
+      </div>
+    </div>
+    <div class="col-6 col-md">
+      <div class="p-3 bg-white rounded-3 shadow-sm border-start border-secondary border-4">
+        <span class="badge bg-secondary px-2 py-1 mb-1">Cancelled</span>
+        <h4 class="fw-bold my-1 text-secondary"><%= stats.cancelledBookings %></h4>
+        <small class="text-muted" style="font-size: 11px;">Guest Cancelled</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Booking Requests Table -->
+<div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h5 class="fw-bold mb-0">Recent Booking Requests</h5>
+      <small class="text-muted">Review guest reservations and approval states</small>
+    </div>
+    <a href="/admin/bookings" class="btn btn-outline-dark btn-sm rounded-pill px-3">All Bookings &rarr;</a>
+  </div>
+
+  <% if (recentBookings.length === 0) { %>
+    <p class="text-muted text-center py-4">No booking requests submitted yet.</p>
+  <% } else { %>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Reference</th>
+            <th>Property</th>
+            <th>Guest</th>
+            <th>Dates</th>
+            <th>Total Price</th>
+            <th>Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (let b of recentBookings) { %>
+            <tr>
+              <td><span class="badge bg-dark font-monospace"><%= b.bookingRef %></span></td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <img src="<%= (b.listing && b.listing.images && b.listing.images.length > 0) ? b.listing.images[0].url : (b.listing && b.listing.image && b.listing.image.url ? b.listing.image.url : '') %>" class="rounded-2 shadow-sm" style="width: 44px; height: 36px; object-fit: cover;" alt="">
+                  <div>
+                    <span class="fw-semibold small d-block"><%= b.listing ? b.listing.title : 'Property Removed' %></span>
+                    <small class="text-muted"><%= b.listing ? b.listing.location : '' %></small>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="small">
+                  <span class="fw-semibold text-dark"><%= b.user ? (b.user.fullName || b.user.username) : 'Guest' %></span>
+                  <div class="text-muted"><%= b.user ? b.user.email : '' %></div>
+                </div>
+              </td>
+              <td class="small">
+                <%= new Date(b.checkIn).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) %> &rarr;
+                <%= new Date(b.checkOut).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) %>
+              </td>
+              <td class="fw-bold small">&#8377;<%= b.totalPrice.toLocaleString("en-IN") %></td>
+              <td>
+                <% if (b.status === 'Pending') { %>
+                  <span class="badge bg-warning text-dark"><i class="fa-solid fa-clock me-1"></i>Pending</span>
+                <% } else if (b.status === 'Confirmed') { %>
+                  <span class="badge bg-success"><i class="fa-solid fa-check me-1"></i>Confirmed</span>
+                <% } else if (b.status === 'Completed') { %>
+                  <span class="badge bg-primary"><i class="fa-solid fa-flag-checkered me-1"></i>Completed</span>
+                <% } else if (b.status === 'Rejected') { %>
+                  <span class="badge bg-danger">Rejected</span>
+                <% } else { %>
+                  <span class="badge bg-secondary">Cancelled</span>
+                <% } %>
+              </td>
+              <td class="text-end">
+                <% if (b.status === 'Pending') { %>
+                  <div class="btn-group btn-group-sm">
+                    <form action="/admin/bookings/<%= b._id %>/approve?_method=PATCH" method="POST" class="d-inline">
+                      <button class="btn btn-sm btn-outline-success rounded-start-pill px-2" title="Approve">
+                        <i class="fa-solid fa-check"></i>
+                      </button>
+                    </form>
+                    <button class="btn btn-sm btn-outline-danger rounded-end-pill px-2" data-bs-toggle="modal" data-bs-target="#rejectModal<%= b._id %>" title="Reject">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+
+                  <!-- Reject Modal -->
+                  <div class="modal fade" id="rejectModal<%= b._id %>" tabindex="-1">
+                    <div class="modal-dialog modal-dialog-centered">
+                      <div class="modal-content text-start">
+                        <form action="/admin/bookings/<%= b._id %>/reject?_method=PATCH" method="POST">
+                          <div class="modal-header">
+                            <h6 class="modal-title fw-bold">Reject Booking #<%= b.bookingRef %></h6>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                          </div>
+                          <div class="modal-body">
+                            <label class="form-label small fw-semibold">Reason for rejection:</label>
+                            <textarea name="rejectionReason" class="form-control" rows="3" placeholder="Dates unavailable or host request..." required></textarea>
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-sm btn-danger">Confirm Rejection</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                <% } else { %>
+                  <span class="small text-muted">Processed</span>
+                <% } %>
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>

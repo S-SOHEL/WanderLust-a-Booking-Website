@@ -1,57 +1,116 @@
 <% layout("/layouts/boilerplate") %>
 
-<div class="row mt-3">
-    <div class="col-6 offset-3">
+<div class="row mt-4 mb-5 justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5">
+      <div class="text-center mb-4">
+        <h2 class="fw-bold mb-1">Create an Account</h2>
+        <p class="text-muted small">Join WanderLust to discover and book extraordinary stays.</p>
+      </div>
 
-        <h3 class="mb-3">Sign Up</h3>
+      <form action="/signup" method="POST" class="needs-validation" novalidate id="signupForm">
+        <!-- Full Name -->
+        <div class="mb-3">
+          <label for="fullName" class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+          <input 
+            type="text"
+            class="form-control form-control-lg rounded-3 fs-6" 
+            id="fullName"
+            name="fullName" 
+            placeholder="e.g. Sohel Shaikh"
+            required />
+          <div class="invalid-feedback">
+            Please enter your full name.
+          </div>
+        </div>
 
-        <form action="/signup" method="POST" class="needs-validation" novalidate>
+        <!-- Email Address -->
+        <div class="mb-3">
+          <label for="email" class="form-label fw-semibold">Email Address <span class="text-danger">*</span></label>
+          <input 
+            type="email"
+            class="form-control form-control-lg rounded-3 fs-6"
+            id="email"
+            name="email"
+            placeholder="name@example.com"
+            required />
+          <div class="invalid-feedback">
+            Please enter a valid email address.
+          </div>
+        </div>
 
-            <!-- Username -->
-            <div class="mb-3">
-                <label for="username" class="form-label">Username</label>
-                <input 
-                    class="form-control" 
-                    id="username"
-                    name="username"  
-                    type="text"
-                    required />
-                <div class="valid-feedback">
-                    Please choose a username.
-                </div>
-            </div>
+        <!-- Mobile Number -->
+        <div class="mb-3">
+          <label for="mobile" class="form-label fw-semibold">Mobile Number <span class="text-danger">*</span></label>
+          <input 
+            type="tel"
+            class="form-control form-control-lg rounded-3 fs-6"
+            id="mobile"
+            name="mobile"
+            placeholder="+91 98765 43210"
+            required />
+          <div class="form-text text-muted small">We'll use this for booking confirmations and dual login.</div>
+          <div class="invalid-feedback">
+            Please enter a valid mobile number (10-15 digits).
+          </div>
+        </div>
 
-            <!-- Email -->
-            <div class="mb-3">
-                <label for="email" class="form-label">Email</label>
-                <input 
-                    class="form-control"
-                    id="email"
-                    name="email"
-                    type="email"
-                    required />
-                <div class="valid-feedback">
-                    Please enter a valid email.
-                </div>
-            </div>
+        <!-- Optional Custom Username -->
+        <div class="mb-3">
+          <label for="username" class="form-label fw-semibold">Username <span class="text-muted fw-normal">(optional)</span></label>
+          <input 
+            type="text"
+            class="form-control form-control-lg rounded-3 fs-6" 
+            id="username"
+            name="username"  
+            placeholder="e.g. sohel_shaikh" />
+          <div class="form-text text-muted small">Leave blank to auto-create a username from your email.</div>
+        </div>
 
-            <!-- Password -->
-            <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
-                <input 
-                    class="form-control"
-                    id="password"
-                    name="password"
-                    type="password"
-                    required />
-                <div class="valid-feedback">
-                    Please enter a password.
-                </div>
-            </div>
+        <!-- Password -->
+        <div class="mb-3">
+          <label for="password" class="form-label fw-semibold">Password <span class="text-danger">*</span></label>
+          <input 
+            type="password"
+            class="form-control form-control-lg rounded-3 fs-6"
+            id="password"
+            name="password"
+            minlength="8"
+            placeholder="Minimum 8 characters"
+            required />
+          <div class="invalid-feedback">
+            Password must be at least 8 characters long.
+          </div>
+        </div>
 
-            <!-- Submit Button -->
-            <button class="btn btn-dark">Sign Up</button>
+        <!-- Confirm Password -->
+        <div class="mb-4">
+          <label for="confirmPassword" class="form-label fw-semibold">Confirm Password <span class="text-danger">*</span></label>
+          <input 
+            type="password"
+            class="form-control form-control-lg rounded-3 fs-6"
+            id="confirmPassword"
+            name="confirmPassword"
+            minlength="8"
+            placeholder="Re-enter your password"
+            required />
+          <div class="invalid-feedback">
+            Please confirm your password.
+          </div>
+        </div>
 
-        </form>
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-danger w-100 py-3 rounded-3 fw-bold fs-6 shadow-sm" style="background-color: #fe424d; border-color: #fe424d;">
+          Sign Up
+        </button>
+
+        <div class="text-center mt-4">
+          <p class="text-muted small mb-0">
+            Already have an account? 
+            <a href="/login" class="text-dark fw-semibold text-decoration-none">Log In</a>
+          </p>
+        </div>
+      </form>
     </div>
+  </div>
 </div>
