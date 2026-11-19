@@ -39,6 +39,31 @@ const userSchema = new Schema({
     enum: ["user", "host", "admin"],
     default: "user",
   },
+  twoFactor: {
+    enabled: {
+      type: Boolean,
+      default: false,
+    },
+    secret: {
+      type: String,
+      default: null,
+    },
+    tempSecret: {
+      type: String,
+      default: null,
+    },
+    recoveryCodes: [
+      {
+        codeHash: { type: String, required: true },
+        used: { type: Boolean, default: false },
+        usedAt: { type: Date, default: null },
+      },
+    ],
+    enrolledAt: {
+      type: Date,
+      default: null,
+    },
+  },
   savedListings: [
     {
       type: Schema.Types.ObjectId,

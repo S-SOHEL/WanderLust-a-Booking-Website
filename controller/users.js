@@ -127,8 +127,14 @@ module.exports.logout = (req, res, next) => {
     if (err) {
       return next(err);
     }
-    req.flash("success", "Successfully logged out!");
-    res.redirect("/listings");
+    if (req.session) {
+      req.session.destroy(() => {
+        res.clearCookie("connect.sid");
+        res.redirect("/listings");
+      });
+    } else {
+      res.redirect("/listings");
+    }
   });
 };
 

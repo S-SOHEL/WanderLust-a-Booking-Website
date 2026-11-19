@@ -24,7 +24,7 @@ module.exports.saveRedirectUrl = (req, res, next) => {
   next();
 };
 
-// Admin only middleware
+// Admin only middleware (Enforces authentication, admin role, and verified 2FA)
 module.exports.isAdmin = (req, res, next) => {
   const wantsJson =
     req.xhr ||
@@ -40,6 +40,7 @@ module.exports.isAdmin = (req, res, next) => {
     req.flash("error", "Please log in with an administrator account.");
     return res.redirect("/admin/login");
   }
+
   if (req.user.role !== "admin") {
     if (wantsJson) {
       return res.status(403).json({ success: false, message: "Access denied: Administrator privileges required." });
@@ -47,6 +48,35 @@ module.exports.isAdmin = (req, res, next) => {
     req.flash("error", "Access denied: Administrator privileges required.");
     return res.redirect("/listings");
   }
+
+  // Mandatory 2FA verification check on session
+  if (!req.session.admin2FAVerified) {
+    if (wantsJson) {
+      return res.status(401).json({ success: false, message: "Two-factor authentication required." });
+    }
+    req.session.adminPending2FA = {
+      userId: req.user._id.toString(),
+      expiresAt: Date.now() + 10 * 60 * 1000,
+      enrolled: !!(req.user.twoFactor && req.user.twoFactor.enabled),
+    };
+    req.flash("warning", "Two-factor authentication verification required.");
+    return res.redirect(req.user.twoFactor && req.user.twoFactor.enabled ? "/admin/verify-2fa" : "/admin/setup-2fa");
+  }
+
+  // Mandatory 2FA enrollment check
+  if (!req.user.twoFactor || !req.user.twoFactor.enabled) {
+    if (wantsJson) {
+      return res.status(403).json({ success: false, message: "Two-factor authentication enrollment required." });
+    }
+    req.session.adminPending2FA = {
+      userId: req.user._id.toString(),
+      expiresAt: Date.now() + 10 * 60 * 1000,
+      enrolled: false,
+    };
+    req.flash("warning", "Two-factor authentication setup is mandatory before accessing the admin dashboard.");
+    return res.redirect("/admin/setup-2fa");
+  }
+
   next();
 };
 

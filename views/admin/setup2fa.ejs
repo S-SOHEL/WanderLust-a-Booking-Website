@@ -1,0 +1,89 @@
+<% layout("/layouts/boilerplate") %>
+
+<div class="row mt-4 mb-5 justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+      <div class="bg-dark text-white p-4 text-center">
+        <div class="rounded-circle text-white d-inline-flex align-items-center justify-content-center mb-2" style="width: 56px; height: 56px; font-size: 1.5rem; background-color: #fe424d !important;">
+          <i class="fa-solid fa-qrcode"></i>
+        </div>
+        <h4 class="fw-bold mb-1">Set Up Two-Factor Authentication</h4>
+        <p class="text-white-50 small mb-0">Mandatory security requirement for WanderLust administrators</p>
+      </div>
+
+      <div class="card-body p-4 p-md-5">
+        <div class="alert alert-info border-0 rounded-3 py-2 px-3 small mb-4 d-flex align-items-center gap-2">
+          <i class="fa-solid fa-circle-info text-info flex-shrink-0 fs-5"></i>
+          <div>
+            <strong>Administrator Protection:</strong> You must configure a TOTP authenticator app (Google Authenticator, Microsoft Authenticator, or Aegis) to access the Admin Console.
+          </div>
+        </div>
+
+        <div class="text-center mb-4">
+          <p class="fw-semibold small text-secondary text-uppercase mb-2">Step 1 — Scan QR Code</p>
+          <div class="d-inline-block p-3 bg-white border rounded-4 shadow-sm mb-3">
+            <img src="<%= qrDataUrl %>" alt="Two-factor authentication QR code" class="img-fluid" style="width: 200px; height: 200px; display: block;" />
+          </div>
+          <p class="small text-muted mb-1">Open your authenticator app and scan the QR code above.</p>
+        </div>
+
+        <div class="mb-4">
+          <p class="fw-semibold small text-secondary text-uppercase mb-1 text-center">Step 2 — Or Enter Key Manually</p>
+          <div class="input-group">
+            <input type="text" class="form-control font-monospace text-center bg-light" value="<%= secret %>" readonly id="manualSecretKey" />
+            <button class="btn btn-outline-secondary" type="button" id="copySecretBtn" title="Copy to clipboard">
+              <i class="fa-regular fa-copy"></i>
+            </button>
+          </div>
+          <small class="text-muted d-block text-center mt-1" style="font-size: 0.72rem;">Account: WanderLust Admin (<%= user.email %>)</small>
+        </div>
+
+        <hr class="my-4" />
+
+        <form action="/admin/setup-2fa" method="POST" class="needs-validation" novalidate>
+          <div class="mb-4 text-center">
+            <p class="fw-semibold small text-secondary text-uppercase mb-2">Step 3 — Confirm Authenticator Code</p>
+            <input 
+              type="text" 
+              class="form-control text-center fw-bold fs-3 letter-spacing-2" 
+              id="totpCode" 
+              name="totpCode" 
+              placeholder="000000" 
+              maxlength="6" 
+              pattern="[0-9]{6}" 
+              inputmode="numeric" 
+              required 
+              autofocus />
+            <div class="invalid-feedback">Please enter the 6-digit code shown in your authenticator app.</div>
+          </div>
+
+          <button type="submit" class="btn btn-dark w-100 py-3 fw-bold rounded-3 mb-2 shadow-sm" style="background-color: #fe424d !important; border: none;">
+            <i class="fa-solid fa-lock-check me-2"></i>Verify Code &amp; Activate 2FA
+          </button>
+        </form>
+
+        <div class="text-center pt-3 border-top mt-4">
+          <a href="/admin/login" class="text-secondary small text-decoration-none">
+            <i class="fa-solid fa-arrow-left me-1"></i>Cancel &amp; Return to Login
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const copyBtn = document.getElementById("copySecretBtn");
+  const secretInput = document.getElementById("manualSecretKey");
+  if (copyBtn && secretInput) {
+    copyBtn.addEventListener("click", () => {
+      secretInput.select();
+      navigator.clipboard.writeText(secretInput.value).then(() => {
+        copyBtn.innerHTML = '<i class="fa-solid fa-check text-success"></i>';
+        setTimeout(() => {
+          copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>';
+        }, 2000);
+      });
+    });
+  }
+</script>

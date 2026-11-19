@@ -1,25 +1,60 @@
 const express = require("express");
 const router = express.Router();
-const passport = require("passport");
+const rateLimit = require("express-rate-limit");
 const wrapAsync = require("../utils/wrapAsync.js");
 const { isAdmin, saveRedirectUrl, validateListing } = require("../middleware.js");
 const adminController = require("../controller/admin.js");
 const { upload } = require("../cloudConfig.js");
 
-// Admin Authentication Routes
+// Rate limiters for admin authentication endpoints
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    req.flash("error", "Too many admin login attempts from this IP address. Please try again after 15 minutes.");
+    res.redirect("/admin/login");
+  },
+});
+
+const admin2faLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    req.flash("error", "Too many 2FA verification attempts from this IP address. Please try again after 15 minutes.");
+    res.redirect("/admin/verify-2fa");
+  },
+});
+
+// Admin Step 1: Password Authentication
 router
   .route("/login")
   .get(adminController.renderLoginForm)
-  .post(
-    saveRedirectUrl,
-    passport.authenticate("local", {
-      failureFlash: true,
-      failureRedirect: "/admin/login",
-    }),
-    adminController.login
-  );
+  .post(adminLoginLimiter, wrapAsync(adminController.login));
 
-// All routes below require Admin privileges (isAdmin)
+// Admin Step 2: Two-Factor Authentication Verification
+router
+  .route("/verify-2fa")
+  .get(adminController.renderVerify2FA)
+  .post(admin2faLimiter, wrapAsync(adminController.verify2FA));
+
+// Admin 2FA Setup / Mandatory Initial Enrollment
+router
+  .route("/setup-2fa")
+  .get(wrapAsync(adminController.renderSetup2FA))
+  .post(wrapAsync(adminController.setup2FA));
+
+// Admin One-Time Recovery Codes Display
+router.get("/recovery-codes", adminController.renderRecoveryCodes);
+
+// Admin Invalidate Session & Logout
+router.get("/logout", adminController.logout);
+router.post("/logout", adminController.logout);
+
+// All routes below require Admin privileges and verified 2FA (isAdmin)
 router.use(isAdmin);
 
 // Admin Dashboard

@@ -18,7 +18,6 @@ async function reconcilePrimaryAdmin() {
     let adminUser = await User.findOne({
       $or: [
         { email: adminEmail },
-        { username: "demo" },
         { username: adminUsername },
       ],
     });
@@ -26,6 +25,7 @@ async function reconcilePrimaryAdmin() {
     if (adminUser) {
       adminUser.role = "admin";
       adminUser.email = adminEmail;
+      adminUser.username = adminUsername;
       if (!adminUser.fullName) {
         adminUser.fullName = "Sohel Shaikh";
       }

@@ -5,6 +5,17 @@ const User = require("../models/user.js");
 const Review = require("../models/review.js");
 const { autoUpdateCompletedBookings } = require("../utils/bookingLifecycle.js");
 const mbxGeocoding = require("@mapbox/mapbox-sdk/services/geocoding");
+const {
+  encryptSecret,
+  decryptSecret,
+  createSecret,
+  verifyTOTP,
+  generateTOTPUri,
+  generateQRCodeDataURL,
+  generateRecoveryCodes,
+  findAndValidateRecoveryCode,
+} = require("../utils/twoFactor.js");
+const { verifyTurnstile } = require("../utils/turnstile.js");
 const mapToken = process.env.MAP_TOKEN;
 const geocodingClient = mapToken ? mbxGeocoding({ accessToken: mapToken }) : null;
 
@@ -34,27 +45,257 @@ function getImageUrl(file) {
 
 // Render Admin Login Form
 module.exports.renderLoginForm = (req, res) => {
-  if (req.isAuthenticated() && req.user.role === "admin") {
+  if (req.isAuthenticated() && req.user.role === "admin" && req.session.admin2FAVerified) {
     return res.redirect("/admin/dashboard");
   }
-  res.render("admin/login.ejs");
+  res.render("admin/login.ejs", {
+    turnstileSiteKey: process.env.TURNSTILE_SITE_KEY || "",
+  });
 };
 
-// Admin Login Post Handler
-module.exports.login = (req, res) => {
-  if (req.user.role !== "admin") {
-    req.flash("error", "Access denied: You are not authorized as an administrator.");
+// Admin Step 1 Login Post Handler (Password & Turnstile Verification)
+module.exports.login = async (req, res) => {
+  const { username, password } = req.body;
+  const turnstileToken = req.body["cf-turnstile-response"];
+
+  // Verify Cloudflare Turnstile challenge if configured
+  const turnstileResult = await verifyTurnstile(turnstileToken, req.ip);
+  if (!turnstileResult.success) {
+    req.flash("error", turnstileResult.error);
     return res.redirect("/admin/login");
   }
-  req.flash("success", `Welcome back to Admin Console, ${req.user.username}!`);
-  let redirectUrl = res.locals.redirectUrl || "/admin/dashboard";
-  if (redirectUrl.includes("/login") || redirectUrl.includes("/signup")) {
-    redirectUrl = "/admin/dashboard";
+
+  const clean = String(username || "").trim();
+  if (!clean || !password) {
+    req.flash("error", "Admin identifier and password are required.");
+    return res.redirect("/admin/login");
   }
-  if (req.session.redirectUrl) {
-    delete req.session.redirectUrl;
+
+  const escapeRegex = (s) => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const user = await User.findOne({
+    $or: [
+      { email: clean.toLowerCase() },
+      { mobile: clean },
+      { username: new RegExp("^" + escapeRegex(clean) + "$", "i") },
+    ],
+  });
+
+  if (!user || user.role !== "admin") {
+    req.flash("error", "Invalid administrator credentials.");
+    return res.redirect("/admin/login");
   }
-  res.redirect(redirectUrl);
+
+  const authResult = await user.authenticate(password);
+  if (authResult.error || !authResult.user) {
+    req.flash("error", "Invalid administrator credentials.");
+    return res.redirect("/admin/login");
+  }
+
+  // Password verification succeeded! Stage pending 2FA state
+  req.session.adminPending2FA = {
+    userId: user._id.toString(),
+    expiresAt: Date.now() + 10 * 60 * 1000,
+    enrolled: !!(user.twoFactor && user.twoFactor.enabled),
+  };
+
+  if (user.twoFactor && user.twoFactor.enabled) {
+    return res.redirect("/admin/verify-2fa");
+  } else {
+    req.flash("warning", "Two-factor authentication setup is required before accessing the admin dashboard.");
+    return res.redirect("/admin/setup-2fa");
+  }
+};
+
+// Render 2FA Verification Form
+module.exports.renderVerify2FA = (req, res) => {
+  const pending = req.session.adminPending2FA;
+  if (!pending || Date.now() > pending.expiresAt) {
+    delete req.session.adminPending2FA;
+    req.flash("error", "Verification session expired. Please sign in again.");
+    return res.redirect("/admin/login");
+  }
+  res.render("admin/verify2fa.ejs");
+};
+
+// Verify 2FA TOTP Code or Recovery Code
+module.exports.verify2FA = async (req, res) => {
+  const pending = req.session.adminPending2FA;
+  if (!pending || Date.now() > pending.expiresAt) {
+    delete req.session.adminPending2FA;
+    req.flash("error", "Verification session expired. Please sign in again.");
+    return res.redirect("/admin/login");
+  }
+
+  const { totpCode, recoveryCode } = req.body;
+  const user = await User.findById(pending.userId);
+  if (!user || user.role !== "admin") {
+    delete req.session.adminPending2FA;
+    req.flash("error", "User not found or unauthorized.");
+    return res.redirect("/admin/login");
+  }
+
+  if (totpCode && totpCode.trim()) {
+    const plainSecret = decryptSecret(user.twoFactor.secret);
+    if (!plainSecret) {
+      req.flash("error", "Security configuration error. Please re-enroll 2FA.");
+      return res.redirect("/admin/login");
+    }
+
+    const isValid = verifyTOTP(totpCode.trim(), plainSecret);
+    if (!isValid) {
+      req.flash("error", "Invalid 6-digit authenticator code. Please check your app clock and try again.");
+      return res.redirect("/admin/verify-2fa");
+    }
+  } else if (recoveryCode && recoveryCode.trim()) {
+    const matchedIdx = findAndValidateRecoveryCode(recoveryCode, user.twoFactor.recoveryCodes);
+    if (matchedIdx === -1) {
+      req.flash("error", "Invalid or already used recovery code.");
+      return res.redirect("/admin/verify-2fa");
+    }
+    user.twoFactor.recoveryCodes[matchedIdx].used = true;
+    user.twoFactor.recoveryCodes[matchedIdx].usedAt = new Date();
+    await user.save();
+    req.flash("warning", "Signed in using a single-use recovery code. Please keep remaining codes safe.");
+  } else {
+    req.flash("error", "Please provide a 6-digit authenticator code or backup recovery code.");
+    return res.redirect("/admin/verify-2fa");
+  }
+
+  // 2FA Verified! Establish Passport session & set admin2FAVerified
+  delete req.session.adminPending2FA;
+  req.login(user, (err) => {
+    if (err) {
+      req.flash("error", "Session initialization error.");
+      return res.redirect("/admin/login");
+    }
+    req.session.admin2FAVerified = true;
+    req.flash("success", `Welcome back to Admin Console, ${user.fullName || user.username}!`);
+    let redirectUrl = res.locals.redirectUrl || "/admin/dashboard";
+    if (redirectUrl.includes("/login") || redirectUrl.includes("/signup") || redirectUrl.includes("/2fa")) {
+      redirectUrl = "/admin/dashboard";
+    }
+    if (req.session.redirectUrl) {
+      delete req.session.redirectUrl;
+    }
+    res.redirect(redirectUrl);
+  });
+};
+
+// Render 2FA Setup / Enrollment Form
+module.exports.renderSetup2FA = async (req, res) => {
+  const pending = req.session.adminPending2FA;
+  if (!pending || Date.now() > pending.expiresAt) {
+    delete req.session.adminPending2FA;
+    req.flash("error", "Setup session expired. Please sign in again.");
+    return res.redirect("/admin/login");
+  }
+
+  const user = await User.findById(pending.userId);
+  if (!user || user.role !== "admin") {
+    delete req.session.adminPending2FA;
+    req.flash("error", "Unauthorized access.");
+    return res.redirect("/admin/login");
+  }
+
+  if (user.twoFactor && user.twoFactor.enabled) {
+    return res.redirect("/admin/verify-2fa");
+  }
+
+  // Generate fresh Base32 secret & persist encrypted in tempSecret
+  const plainSecret = createSecret();
+  user.twoFactor = user.twoFactor || {};
+  user.twoFactor.tempSecret = encryptSecret(plainSecret);
+  await user.save();
+
+  const otpUri = generateTOTPUri(user.email, plainSecret);
+  const qrDataUrl = await generateQRCodeDataURL(otpUri);
+
+  res.render("admin/setup2fa.ejs", {
+    qrDataUrl,
+    secret: plainSecret,
+    user,
+  });
+};
+
+// Confirm 2FA Setup with 6-digit code and generate recovery codes
+module.exports.setup2FA = async (req, res) => {
+  const pending = req.session.adminPending2FA;
+  if (!pending || Date.now() > pending.expiresAt) {
+    delete req.session.adminPending2FA;
+    req.flash("error", "Setup session expired. Please sign in again.");
+    return res.redirect("/admin/login");
+  }
+
+  const { totpCode } = req.body;
+  const user = await User.findById(pending.userId);
+  if (!user || user.role !== "admin") {
+    delete req.session.adminPending2FA;
+    req.flash("error", "Unauthorized access.");
+    return res.redirect("/admin/login");
+  }
+
+  if (!user.twoFactor || !user.twoFactor.tempSecret) {
+    req.flash("error", "Setup session expired. Please re-open the setup page.");
+    return res.redirect("/admin/setup-2fa");
+  }
+
+  const plainSecret = decryptSecret(user.twoFactor.tempSecret);
+  const isValid = verifyTOTP(totpCode, plainSecret);
+
+  if (!isValid) {
+    req.flash("error", "Verification failed. The 6-digit code does not match. Please verify your app's time and re-enter.");
+    return res.redirect("/admin/setup-2fa");
+  }
+
+  // Code verified! Generate 8 recovery codes
+  const generatedCodes = generateRecoveryCodes(8);
+  user.twoFactor.secret = user.twoFactor.tempSecret;
+  user.twoFactor.tempSecret = null;
+  user.twoFactor.enabled = true;
+  user.twoFactor.enrolledAt = new Date();
+  user.twoFactor.recoveryCodes = generatedCodes.map((c) => ({
+    codeHash: c.codeHash,
+    used: false,
+    usedAt: null,
+  }));
+  await user.save();
+
+  // Clear pending, establish session, and display recovery codes once
+  delete req.session.adminPending2FA;
+  req.login(user, (err) => {
+    if (err) {
+      req.flash("error", "Session initialization error.");
+      return res.redirect("/admin/login");
+    }
+    req.session.admin2FAVerified = true;
+    req.session.newRecoveryCodes = generatedCodes.map((c) => c.plain);
+    res.redirect("/admin/recovery-codes");
+  });
+};
+
+// Render One-Time Recovery Codes Display Page
+module.exports.renderRecoveryCodes = (req, res) => {
+  if (!req.session.admin2FAVerified || !req.session.newRecoveryCodes) {
+    return res.redirect("/admin/dashboard");
+  }
+  const recoveryCodes = req.session.newRecoveryCodes;
+  // Delete from session so they are not retained once viewed
+  delete req.session.newRecoveryCodes;
+  res.render("admin/recoveryCodes.ejs", { recoveryCodes });
+};
+
+// Admin Invalidate Session & Logout
+module.exports.logout = (req, res) => {
+  req.logout((err) => {
+    if (req.session) {
+      req.session.destroy(() => {
+        res.clearCookie("connect.sid");
+        res.redirect("/admin/login");
+      });
+    } else {
+      res.redirect("/admin/login");
+    }
+  });
 };
 
 // Admin Dashboard Overview

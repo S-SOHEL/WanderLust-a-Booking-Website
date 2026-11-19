@@ -1,0 +1,101 @@
+<% layout("/layouts/boilerplate") %>
+
+<div class="row mt-4 mb-5 justify-content-center">
+  <div class="col-12 col-md-8 col-lg-7">
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+      <div class="bg-dark text-white p-4 text-center">
+        <div class="rounded-circle text-white d-inline-flex align-items-center justify-content-center mb-2" style="width: 56px; height: 56px; font-size: 1.5rem; background-color: #fe424d !important;">
+          <i class="fa-solid fa-key"></i>
+        </div>
+        <h4 class="fw-bold mb-1">Save Your Admin Recovery Codes</h4>
+        <p class="text-white-50 small mb-0">Store these backup codes in a secure password manager</p>
+      </div>
+
+      <div class="card-body p-4 p-md-5">
+        <div class="alert alert-warning border-0 rounded-3 py-3 px-3 mb-4 d-flex align-items-start gap-2">
+          <i class="fa-solid fa-triangle-exclamation text-warning flex-shrink-0 fs-5 mt-1"></i>
+          <div class="small">
+            <strong>CRITICAL:</strong> These recovery codes are shown only <strong>ONCE</strong>. If you lose access to your authenticator device, each recovery code can be used once to sign in. Store them safely!
+          </div>
+        </div>
+
+        <div class="bg-light p-3 p-md-4 rounded-4 border mb-4">
+          <div class="row g-2" id="codesGrid">
+            <% recoveryCodes.forEach((code, idx) => { %>
+              <div class="col-6 col-sm-6 text-center">
+                <div class="p-2 bg-white border rounded-3 font-monospace fw-bold text-dark user-select-all small shadow-sm">
+                  <%= code %>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mb-4 justify-content-center">
+          <button type="button" class="btn btn-outline-dark rounded-pill px-4 btn-sm" id="copyAllCodesBtn">
+            <i class="fa-regular fa-copy me-1"></i>Copy All Codes
+          </button>
+          <button type="button" class="btn btn-outline-dark rounded-pill px-4 btn-sm" id="downloadCodesBtn">
+            <i class="fa-solid fa-download me-1"></i>Download .txt File
+          </button>
+        </div>
+
+        <div class="form-check mb-4 bg-light p-3 rounded-3 border">
+          <input class="form-check-input ms-0 me-2" type="checkbox" id="savedConfirmCheck" />
+          <label class="form-check-label small fw-semibold text-dark" for="savedConfirmCheck">
+            I have saved these 8 recovery codes in a secure location (e.g. password manager, encrypted vault).
+          </label>
+        </div>
+
+        <a href="/admin/dashboard" id="continueToDashboardBtn" class="btn btn-dark w-100 py-3 fw-bold rounded-3 shadow-sm disabled" style="background-color: #fe424d !important; border: none;">
+          <i class="fa-solid fa-arrow-right me-2"></i>Continue to Admin Dashboard
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const codes = <%- JSON.stringify(recoveryCodes) %>;
+  const copyBtn = document.getElementById("copyAllCodesBtn");
+  const downloadBtn = document.getElementById("downloadCodesBtn");
+  const confirmCheck = document.getElementById("savedConfirmCheck");
+  const continueBtn = document.getElementById("continueToDashboardBtn");
+
+  if (confirmCheck && continueBtn) {
+    confirmCheck.addEventListener("change", () => {
+      if (confirmCheck.checked) {
+        continueBtn.classList.remove("disabled");
+      } else {
+        continueBtn.classList.add("disabled");
+      }
+    });
+  }
+
+  if (copyBtn) {
+    copyBtn.addEventListener("click", () => {
+      const text = "WanderLust Admin 2FA Recovery Codes:\n" + codes.join("\n");
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.innerHTML = '<i class="fa-solid fa-check text-success me-1"></i>Copied!';
+        setTimeout(() => {
+          copyBtn.innerHTML = '<i class="fa-regular fa-copy me-1"></i>Copy All Codes';
+        }, 2000);
+      });
+    });
+  }
+
+  if (downloadBtn) {
+    downloadBtn.addEventListener("click", () => {
+      const text = "WANDERLUST ADMIN BACKUP RECOVERY CODES\nGenerated: " + new Date().toISOString() + "\n\n" + codes.join("\n") + "\n\nEach code can be used once if you lose your 2FA authenticator app.";
+      const blob = new Blob([text], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "wanderlust-admin-recovery-codes.txt";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  }
+</script>
