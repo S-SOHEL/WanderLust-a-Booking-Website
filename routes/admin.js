@@ -4,9 +4,7 @@ const passport = require("passport");
 const wrapAsync = require("../utils/wrapAsync.js");
 const { isAdmin, saveRedirectUrl, validateListing } = require("../middleware.js");
 const adminController = require("../controller/admin.js");
-const multer = require("multer");
-const { storage } = require("../cloudConfig.js");
-const upload = multer({ storage });
+const { upload } = require("../cloudConfig.js");
 
 // Admin Authentication Routes
 router

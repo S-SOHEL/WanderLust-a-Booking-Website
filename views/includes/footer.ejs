@@ -1,113 +1,108 @@
-<footer class="mt-5">
-
-<!-- Inspiration Section (Optional but looks impressive) -->
-<div class="inspiration-section">
-  <div class="container">
-    <h4>Inspiration for future getaways</h4>
-    <div class="inspiration-tabs">
-      <span class="tab active">Popular</span>
-      <span class="tab">Beach</span>
-      <span class="tab">Mountains</span>
-      <span class="tab">Outdoors</span>
-    </div>
-
-    <div class="inspiration-grid">
-      <div class="insp-item">
-        <b>Goa</b>
-        <p>Villa rentals</p>
-      </div>
-      <div class="insp-item">
-        <b>Manali</b>
-        <p>Cottage rentals</p>
-      </div>
-      <div class="insp-item">
-        <b>Jaipur</b>
-        <p>House rentals</p>
-      </div>
-      <div class="insp-item">
-        <b>Pune</b>
-        <p>Apartment rentals</p>
-      </div>
-      <div class="insp-item">
-        <b>Mumbai</b>
-        <p>Flat rentals</p>
+<footer class="site-footer mt-auto" role="contentinfo">
+  <!-- Inspiration Strip (Compact horizontal scroll on mobile, clean grid on desktop) -->
+  <div class="footer-inspiration border-bottom">
+    <div class="container">
+      <h6 class="footer-inspiration-title mb-3">Inspiration for future getaways</h6>
+      <div class="inspiration-grid">
+        <a href="/listings/search?location=Goa" class="insp-item">
+          <span class="insp-city">Goa</span>
+          <span class="insp-type">Beachfront villas</span>
+        </a>
+        <a href="/listings/search?location=Manali" class="insp-item">
+          <span class="insp-city">Manali</span>
+          <span class="insp-type">Mountain cabins</span>
+        </a>
+        <a href="/listings/search?location=Jaipur" class="insp-item">
+          <span class="insp-city">Jaipur</span>
+          <span class="insp-type">Heritage havelis</span>
+        </a>
+        <a href="/listings/search?location=Lonavala" class="insp-item">
+          <span class="insp-city">Lonavala</span>
+          <span class="insp-type">Hillside retreats</span>
+        </a>
+        <a href="/listings/search?location=Mumbai" class="insp-item">
+          <span class="insp-city">Mumbai</span>
+          <span class="insp-type">City apartments</span>
+        </a>
+        <a href="/listings/search?location=Udaipur" class="insp-item">
+          <span class="insp-city">Udaipur</span>
+          <span class="insp-type">Lakeside stays</span>
+        </a>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Main Footer -->
-<footer class="site-footer">
-  <div class="container">
-    <div class="footer-columns">
-      <div class="footer-col">
-        <h6>Support</h6>
-        <a href="#">Help Centre</a>
-        <a href="#">Safety information</a>
-        <a href="#">Cancellation options</a>
+  <!-- Main Footer Links: 3 Columns on Desktop, Collapsible Accordion on Mobile -->
+  <div class="container footer-main">
+    <div class="row g-md-4 footer-columns">
+      <!-- Support -->
+      <div class="col-12 col-md-4 footer-col">
+        <button class="footer-accordion-btn d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#footerSupport" aria-expanded="false" aria-controls="footerSupport">
+          <span>Support</span>
+          <i class="fa-solid fa-chevron-down footer-chevron"></i>
+        </button>
+        <h6 class="d-none d-md-block">Support</h6>
+        <div class="collapse d-md-block footer-collapse-body" id="footerSupport">
+          <div class="pb-2">
+            <a href="/listings">Help &amp; Explore Stays</a>
+            <a href="/bookings">Cancellation &amp; Trips</a>
+            <a href="/profile">Guest Account Safety</a>
+          </div>
+        </div>
       </div>
 
-      <div class="footer-col">
-        <h6>Hosting</h6>
-        <a href="#">List your property</a>
-        <a href="#">Hosting resources</a>
-        <a href="#">Community forum</a>
+      <!-- Hosting -->
+      <div class="col-12 col-md-4 footer-col">
+        <button class="footer-accordion-btn d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#footerHosting" aria-expanded="false" aria-controls="footerHosting">
+          <span>Hosting</span>
+          <i class="fa-solid fa-chevron-down footer-chevron"></i>
+        </button>
+        <h6 class="d-none d-md-block">Hosting</h6>
+        <div class="collapse d-md-block footer-collapse-body" id="footerHosting">
+          <div class="pb-2">
+            <a href="/listings/new">List your property</a>
+            <a href="/profile#properties">Manage your stays</a>
+            <a href="/listings">Hosting standards</a>
+          </div>
+        </div>
       </div>
 
-      <div class="footer-col">
-        <h6>WanderLust</h6>
-        <a href="#">About us</a>
-        <a href="#">Careers</a>
-        <a href="#">Newsroom</a>
+      <!-- About -->
+      <div class="col-12 col-md-4 footer-col">
+        <button class="footer-accordion-btn d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#footerAbout" aria-expanded="false" aria-controls="footerAbout">
+          <span>About WanderLust</span>
+          <i class="fa-solid fa-chevron-down footer-chevron"></i>
+        </button>
+        <h6 class="d-none d-md-block">WanderLust</h6>
+        <div class="collapse d-md-block footer-collapse-body" id="footerAbout">
+          <div class="pb-2">
+            <a href="/listings">About us</a>
+            <a href="/listings?category=Trending">Trending destinations</a>
+            <a href="/signup">Join WanderLust</a>
+          </div>
+        </div>
       </div>
     </div>
 
-    <hr>
-
+    <!-- Bottom Legal, Locale & Social Row -->
     <div class="footer-bottom">
-      <p>&copy; 2026 WanderLust, Inc.
-        <span class="dot">·</span> <a href="#">Privacy</a>
-        <span class="dot">·</span> <a href="#">Terms</a>
-      </p>
+      <div class="footer-legal">
+        <span>&copy; 2026 WanderLust, Inc.</span>
+        <span class="dot" aria-hidden="true">&middot;</span>
+        <a href="/listings">Privacy</a>
+        <span class="dot" aria-hidden="true">&middot;</span>
+        <a href="/listings">Terms</a>
+      </div>
 
       <div class="footer-socials">
-        <span>English (IN)</span>
-        <span>₹ INR</span>
-        <i class="fa-brands fa-facebook"></i>
-        <i class="fa-brands fa-twitter"></i>
-        <i class="fa-brands fa-instagram"></i>
+        <span class="footer-locale"><i class="fa-solid fa-globe me-1"></i>English (IN)</span>
+        <span class="footer-locale">&#8377; INR</span>
+        <div class="footer-social-icons">
+          <a href="/listings" aria-label="WanderLust on Facebook"><i class="fa-brands fa-facebook"></i></a>
+          <a href="/listings" aria-label="WanderLust on X"><i class="fa-brands fa-x-twitter"></i></a>
+          <a href="/listings" aria-label="WanderLust on Instagram"><i class="fa-brands fa-instagram"></i></a>
+        </div>
       </div>
     </div>
   </div>
-</footer>
-
-
-
-
-
-
-
-
-
-
-    <!-- <div class="f-info">
-        <div class="f-info-socials">
-            <a href="" target="_blank" aria-label="Facebook">
-                <i class="fa-brands fa-square-facebook"></i>
-            </a>
-
-            <a href="" target="_blank" aria-label="Instagram">
-                <i class="fa-brands fa-square-instagram"></i>
-            </a>
-
-            <a href="" target="_blank" aria-label="LinkedIn">
-                <i class="fa-brands fa-square-linkedin"></i>
-            </a>
-        </div>
-        <div class="f-info-brand">&copy; Wanderlust Private Limited</div>
-        <div class="f-info-links">
-            <a href="/privacy">Privacy</a>
-            <a href="/terms">Terms</a>
-        </div>
-    </div> -->
 </footer>

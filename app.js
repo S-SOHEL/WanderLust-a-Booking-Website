@@ -173,7 +173,10 @@ passport.deserializeUser(User.deserializeUser());
 app.use(async (req, res, next) => {
   res.locals.success = req.flash("success");
   res.locals.error = req.flash("error");
+  res.locals.warning = req.flash("warning");
+  res.locals.info = req.flash("info");
   res.locals.currUser = req.user;
+  res.locals.currentPath = req.path || "/";
 
   // Provide pending bookings and listings count for admin notification pill
   if (req.user && req.user.role === "admin") {
@@ -222,9 +225,29 @@ app.use((err, req, res, next) => {
   if (res.headersSent) {
     return next(err);
   }
-  console.log("Error caught in middleware:", err);
-  const { statusCode = 500, message = "Something went wrong!" } = err;
-  res.status(statusCode).render("error", { err, message, statusCode });
+  console.error("Error caught in middleware:", err.message || err);
+
+  let statusCode = err.statusCode || 500;
+  let message = err.message || "Something went wrong!";
+
+  if (err.name === "MulterError") {
+    statusCode = 400;
+    message = err.code === "LIMIT_FILE_SIZE"
+      ? "Uploaded file is too large. Maximum allowed size is 5 MB per image."
+      : err.message;
+  } else if (err.message && err.message.includes("Only image files")) {
+    statusCode = 400;
+  } else if (err.name === "CastError") {
+    statusCode = 400;
+    message = "Invalid identifier provided.";
+  } else if (isProduction && statusCode >= 500) {
+    message = "An unexpected server error occurred. Please try again shortly.";
+  }
+
+  if (req.xhr || (req.headers.accept && req.headers.accept.includes("application/json") && !req.headers.accept.includes("text/html"))) {
+    return res.status(statusCode).json({ success: false, error: message });
+  }
+  res.status(statusCode).render("error", { err: isProduction ? { statusCode, message } : err, message, statusCode });
 });
 
 const port = process.env.PORT || 8080;

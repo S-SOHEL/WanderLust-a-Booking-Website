@@ -1,10 +1,24 @@
 (() => {
   if (typeof mapboxgl === "undefined") return;
 
+  function escapeHtml(str) {
+    return String(str || "").replace(/[&<>"']/g, (ch) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    }[ch]));
+  }
+
   const token = typeof mapToken !== "undefined" && mapToken ? mapToken : "";
   const mapContainer = document.getElementById("map");
 
   if (!mapContainer) return;
+
+  const safeTitle = escapeHtml(typeof listing !== "undefined" && listing ? listing.title || "Listing Location" : "Listing Location");
+  const safeLocation = escapeHtml(typeof listing !== "undefined" && listing ? listing.location || "" : "");
+  const safeCountry = escapeHtml(typeof listing !== "undefined" && listing ? listing.country || "" : "");
 
   if (!token || token.trim() === "" || token === "undefined") {
     mapContainer.innerHTML = `
@@ -12,7 +26,7 @@
         <i class="fa-solid fa-map-location-dot fs-1 mb-2 text-secondary"></i>
         <p class="mb-1 fw-semibold text-dark">Map Preview</p>
         <p class="small mb-0 text-muted">To enable live Mapbox tiles, set MAP_TOKEN in your environment.</p>
-        <small class="text-secondary mt-1">${typeof listing !== "undefined" && listing ? (listing.location || "") + ", " + (listing.country || "") : ""}</small>
+        <small class="text-secondary mt-1">${safeLocation}${safeCountry ? ", " + safeCountry : ""}</small>
       </div>`;
     return;
   }
@@ -37,7 +51,7 @@
           <i class="fa-solid fa-location-crosshairs fs-1 mb-2 text-secondary"></i>
           <p class="mb-1 fw-semibold text-dark">Location Coordinates Pending</p>
           <p class="small mb-0 text-muted">Precise geographical coordinates have not yet been pinpointed for this property.</p>
-          <small class="text-secondary mt-1">${typeof listing !== "undefined" && listing ? (listing.location || "") + ", " + (listing.country || "") : ""}</small>
+          <small class="text-secondary mt-1">${safeLocation}${safeCountry ? ", " + safeCountry : ""}</small>
         </div>`;
       return;
     }
@@ -58,6 +72,9 @@
       scrollZoom: false, // Prevent accidental scroll hijacking while browsing page
     });
 
+    // Expose map instance cleanly for fullscreen toggle resize
+    window.wanderlustMap = map;
+
     // Add navigation controls (zoom in / zoom out / compass)
     map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), "top-right");
 
@@ -67,12 +84,8 @@
 
     const popup = new mapboxgl.Popup({ offset: 25, closeButton: true }).setHTML(`
       <div style="padding: 8px 10px; font-family: inherit;">
-        <h6 style="font-weight: 700; font-size: 14px; margin-bottom: 2px; color: #222;">${
-          listing.title || "Listing Location"
-        }</h6>
-        <p style="margin: 0; color: #717171; font-size: 12px;"><i class="fa-solid fa-location-dot" style="color: #fe424d; margin-right: 4px;"></i>${
-          listing.location || ""
-        }, ${listing.country || ""}</p>
+        <h6 style="font-weight: 700; font-size: 14px; margin-bottom: 2px; color: #222;">${safeTitle}</h6>
+        <p style="margin: 0; color: #717171; font-size: 12px;"><i class="fa-solid fa-location-dot" style="color: #fe424d; margin-right: 4px;"></i>${safeLocation}${safeCountry ? ", " + safeCountry : ""}</p>
         <div style="margin-top: 6px; padding-top: 4px; border-top: 1px solid #eee; font-size: 11px; color: #555;">
           ${popupSubtext}
         </div>

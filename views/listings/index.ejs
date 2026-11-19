@@ -5,75 +5,155 @@
     if (!str) return "WanderLust Stay";
     return str.replace(/\s+[0-9]{5,}\b/g, "").replace(/_[0-9]{5,}\b/g, "").trim();
   }
+
+  const _savedSet = new Set(typeof savedListingIds !== "undefined" && Array.isArray(savedListingIds) ? savedListingIds : []);
+  const activeCat = typeof selectedCategory !== "undefined" ? selectedCategory : "All";
+  const activeSearch = typeof searchLocation !== "undefined" ? searchLocation : "";
+  const activePropType = typeof propertyType !== "undefined" ? propertyType : "All";
+  const activeSort = typeof currentSort !== "undefined" ? currentSort : "newest";
+  const activeGuests = typeof searchGuests !== "undefined" && searchGuests ? searchGuests : (typeof guests !== "undefined" && guests ? guests : "");
+  const isFilteredView = Boolean(
+    (activeCat && activeCat !== "All") ||
+    activeSearch ||
+    (activePropType && activePropType !== "All") ||
+    activeGuests ||
+    (activeSort && activeSort !== "newest")
+  );
+
+  // Build real mobile horizontal collections strictly from actual allListings (zero fabricated items)
+  const mobileCollections = [];
+  if (!isFilteredView && allListings.length >= 6) {
+    // 1. Top city/destination collection with at least 3 real listings
+    const cityBuckets = {};
+    for (const l of allListings) {
+      const cityKey = ((l.city && l.city.trim()) || (l.location || "").split(",").pop() || "").trim();
+      if (!cityKey || cityKey.length < 2) continue;
+      if (!cityBuckets[cityKey]) cityBuckets[cityKey] = [];
+      cityBuckets[cityKey].push(l);
+    }
+    const sortedCities = Object.entries(cityBuckets)
+      .filter(([, arr]) => arr.length >= 3)
+      .sort((a, b) => b[1].length - a[1].length);
+
+    if (sortedCities.length > 0) {
+      const [topCity, topItems] = sortedCities[0];
+      mobileCollections.push({
+        title: `Popular homes in ${topCity}`,
+        href: `/listings/search?location=${encodeURIComponent(topCity)}`,
+        items: topItems.slice(0, 8),
+      });
+    }
+
+    // 2. Mountain stays collection (if >= 3 real listings)
+    const mountainItems = allListings.filter((l) => l.category === "Mountains").slice(0, 8);
+    if (mountainItems.length >= 3) {
+      mobileCollections.push({
+        title: "Mountain getaways",
+        href: "/listings?category=Mountains",
+        items: mountainItems,
+      });
+    }
+
+    // 3. Villas & Heritage collection (if >= 3 real listings)
+    const villaItems = allListings.filter((l) => ["Villa", "Haveli"].includes(l.propertyType)).slice(0, 8);
+    if (villaItems.length >= 3) {
+      mobileCollections.push({
+        title: "Villas & heritage stays",
+        href: "/listings?propertyType=Villa",
+        items: villaItems,
+      });
+    }
+  }
 %>
 
-<!-- Floating Airbnb-Style Search Section -->
-<div class="search-wrapper my-2">
+<!-- =========================================================
+     1. SEARCH ENTRY: Compact Mobile Pill (<768px) + Desktop Bar (>=768px)
+     ========================================================= -->
+
+<!-- Mobile Compact Search Trigger Pill (< 768px) -->
+<div class="wl-mobile-search-wrap d-md-none mt-2 mb-2">
+  <button type="button" class="wl-mobile-search-pill" data-bs-toggle="modal" data-bs-target="#mobileSearchModal" aria-label="Search stays and filters">
+    <span class="wl-mobile-search-icon" aria-hidden="true">
+      <i class="fa-solid fa-magnifying-glass"></i>
+    </span>
+    <span class="wl-mobile-search-copy text-start min-w-0">
+      <span class="d-block fw-semibold text-dark text-truncate" style="font-size: 0.9rem;">
+        <%= activeSearch ? activeSearch : "Start your search" %>
+      </span>
+      <span class="d-block text-muted text-truncate" style="font-size: 0.74rem;">
+        <%= activeGuests ? activeGuests + " guests" : "Anywhere" %> &middot; Any week &middot; <%= activePropType !== 'All' ? activePropType : 'All stays' %>
+      </span>
+    </span>
+    <span class="wl-mobile-filter-circle" aria-hidden="true">
+      <i class="fa-solid fa-sliders"></i>
+    </span>
+  </button>
+</div>
+
+<!-- Desktop Floating Search Bar (preserved >= 768px) -->
+<div class="search-wrapper my-2 d-none d-md-flex">
   <form class="airbnb-search" method="GET" action="/listings/search" id="airbnbSearchForm">
-    <!-- Where -->
     <div class="search-segment">
       <label for="search-where">Where</label>
-      <input 
+      <input
         id="search-where"
-        type="text" 
-        name="location" 
-        value="<%= typeof searchLocation !== 'undefined' ? searchLocation : '' %>" 
+        type="text"
+        name="location"
+        value="<%= activeSearch %>"
         placeholder="Search destinations, cities, or stays"
         autocomplete="off">
     </div>
 
-    <div class="search-divider d-none d-md-block"></div>
+    <div class="search-divider"></div>
 
-    <!-- When: Check-in -->
-    <div class="search-segment d-none d-md-flex">
+    <div class="search-segment">
       <label for="search-checkin">Check in</label>
-      <input 
-        id="search-checkin" 
-        type="date" 
-        name="checkIn" 
+      <input
+        id="search-checkin"
+        type="date"
+        name="checkIn"
         value="<%= typeof checkIn !== 'undefined' ? checkIn : '' %>"
         style="font-size: 13px;">
     </div>
 
-    <div class="search-divider d-none d-md-block"></div>
+    <div class="search-divider"></div>
 
-    <!-- When: Checkout -->
-    <div class="search-segment d-none d-md-flex">
+    <div class="search-segment">
       <label for="search-checkout">Check out</label>
-      <input 
-        id="search-checkout" 
-        type="date" 
-        name="checkOut" 
+      <input
+        id="search-checkout"
+        type="date"
+        name="checkOut"
         value="<%= typeof checkOut !== 'undefined' ? checkOut : '' %>"
         style="font-size: 13px;">
     </div>
 
-    <div class="search-divider d-none d-sm-block"></div>
+    <div class="search-divider"></div>
 
-    <!-- Who: Guests -->
-    <div class="search-segment d-none d-sm-flex" style="max-width: 160px;">
+    <div class="search-segment" style="max-width: 160px;">
       <label for="search-who">Who</label>
-      <input 
-        id="search-who" 
-        type="number" 
-        min="1" 
-        max="20" 
-        name="guests" 
-        value="<%= typeof searchGuests !== 'undefined' && searchGuests ? searchGuests : (typeof guests !== 'undefined' && guests ? guests : '') %>" 
+      <input
+        id="search-who"
+        type="number"
+        min="1"
+        max="20"
+        name="guests"
+        value="<%= activeGuests %>"
         placeholder="Add guests">
     </div>
 
-    <!-- Search Button -->
-    <button class="btn-search ms-auto" type="submit" title="Search WanderLust Stays">
+    <button class="btn-search ms-auto" type="submit" aria-label="Search WanderLust Stays" title="Search WanderLust Stays">
       <i class="fa-solid fa-magnifying-glass"></i>
     </button>
   </form>
 </div>
 
-<!-- Category Filters Bar -->
+<!-- =========================================================
+     2. HORIZONTALLY SCROLLABLE CATEGORY NAVIGATION
+     ========================================================= -->
 <div class="filters-container d-flex align-items-center mb-3">
-  <div id="filters" class="d-flex align-items-center">
-    <% 
+  <div id="filters" class="d-flex align-items-center" role="navigation" aria-label="Property categories">
+    <%
       const categories = [
         { name: "All", icon: "fa-earth-americas" },
         { name: "Trending", icon: "fa-fire" },
@@ -88,65 +168,87 @@
         { name: "Domes", icon: "fa-igloo" },
         { name: "Boats", icon: "fa-ship" },
       ];
-      const activeCat = typeof selectedCategory !== 'undefined' ? selectedCategory : 'All';
     %>
 
     <% for (let cat of categories) { %>
-      <a href="/listings?category=<%= cat.name %><%= typeof currentSort !== 'undefined' ? '&sort=' + currentSort : '' %>" class="filter <%= activeCat === cat.name ? 'active' : '' %>">
-        <div><i class="fa-solid <%= cat.icon %>"></i></div>
+      <a href="/listings?category=<%= encodeURIComponent(cat.name) %><%= activeSort ? '&sort=' + encodeURIComponent(activeSort) : '' %>" class="filter <%= activeCat === cat.name ? 'active' : '' %>">
+        <div><i class="fa-solid <%= cat.icon %>" aria-hidden="true"></i></div>
         <p><%= cat.name %></p>
       </a>
     <% } %>
   </div>
 
-  <!-- Tax Switch Toggle -->
+  <!-- Desktop Tax Switch Toggle -->
   <div class="tax-toggle ms-3 d-none d-lg-flex align-items-center">
     <div class="form-check form-switch form-check-reverse m-0">
-      <input class="form-check-input cursor-pointer" type="checkbox" role="switch" id="taxSwitch">
+      <input class="form-check-input cursor-pointer tax-switch-input" type="checkbox" role="switch" id="taxSwitch">
       <label class="form-check-label fw-semibold small cursor-pointer" for="taxSwitch">Display total after taxes</label>
     </div>
   </div>
 </div>
 
-<!-- Secondary Toolbar: Property Type & Sorting -->
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 p-2 bg-white rounded-3 border small">
+<!-- =========================================================
+     3. COMPACT MOBILE FILTER CHIPS (<768px) + DESKTOP TOOLBAR (>=768px)
+     ========================================================= -->
+<div class="wl-mobile-chips-row d-flex d-md-none align-items-center gap-2 mb-3">
+  <button type="button" class="wl-chip-btn <%= activePropType !== 'All' ? 'active' : '' %>" data-bs-toggle="modal" data-bs-target="#mobileSearchModal">
+    <i class="fa-solid fa-house-chimney"></i>
+    <span><%= activePropType !== 'All' ? activePropType : 'Type' %></span>
+  </button>
+
+  <button type="button" class="wl-chip-btn <%= activeSort !== 'newest' ? 'active' : '' %>" data-bs-toggle="modal" data-bs-target="#mobileSearchModal">
+    <i class="fa-solid fa-arrow-down-short-wide"></i>
+    <span><%= activeSort === 'price_asc' ? 'Price: Low' : (activeSort === 'price_desc' ? 'Price: High' : 'Sort') %></span>
+  </button>
+
+  <label class="wl-chip-btn mb-0" for="mobileTaxSwitch">
+    <input class="form-check-input m-0 me-1 tax-switch-input" type="checkbox" id="mobileTaxSwitch">
+    <span>Incl. taxes</span>
+  </label>
+
+  <% if (isFilteredView) { %>
+    <a href="/listings" class="wl-chip-btn text-danger border-danger">
+      <i class="fa-solid fa-xmark"></i><span>Clear</span>
+    </a>
+  <% } %>
+</div>
+
+<!-- Desktop Secondary Toolbar (preserved >= 768px) -->
+<div class="d-none d-md-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 p-2 bg-white rounded-3 border small">
   <div class="d-flex flex-wrap align-items-center gap-2">
-    <!-- Property Type Filter Dropdown -->
     <div class="dropdown">
       <button class="btn btn-sm btn-white border dropdown-toggle bg-white rounded-pill px-3 fw-medium" type="button" data-bs-toggle="dropdown">
-        <i class="fa-solid fa-house-chimney me-1 text-secondary"></i> Property Type: <strong><%= typeof propertyType !== 'undefined' && propertyType !== 'All' ? propertyType : 'All' %></strong>
+        <i class="fa-solid fa-house-chimney me-1 text-secondary"></i> Property Type: <strong><%= activePropType !== 'All' ? activePropType : 'All' %></strong>
       </button>
       <ul class="dropdown-menu shadow-sm rounded-3">
-        <li><a class="dropdown-item" href="/listings?<%= typeof selectedCategory !== 'undefined' ? 'category=' + selectedCategory : '' %>">All Types</a></li>
-        <li><a class="dropdown-item" href="/listings?propertyType=Apartment<%= typeof selectedCategory !== 'undefined' ? '&category=' + selectedCategory : '' %>">Apartments</a></li>
-        <li><a class="dropdown-item" href="/listings?propertyType=Villa<%= typeof selectedCategory !== 'undefined' ? '&category=' + selectedCategory : '' %>">Villas</a></li>
-        <li><a class="dropdown-item" href="/listings?propertyType=Cabin<%= typeof selectedCategory !== 'undefined' ? '&category=' + selectedCategory : '' %>">Cabins</a></li>
-        <li><a class="dropdown-item" href="/listings?propertyType=Cottage<%= typeof selectedCategory !== 'undefined' ? '&category=' + selectedCategory : '' %>">Cottages</a></li>
-        <li><a class="dropdown-item" href="/listings?propertyType=Haveli<%= typeof selectedCategory !== 'undefined' ? '&category=' + selectedCategory : '' %>">Havelis & Heritage</a></li>
-        <li><a class="dropdown-item" href="/listings?propertyType=Studio<%= typeof selectedCategory !== 'undefined' ? '&category=' + selectedCategory : '' %>">Studios</a></li>
+        <li><a class="dropdown-item" href="/listings?category=<%= encodeURIComponent(activeCat) %>&sort=<%= encodeURIComponent(activeSort) %>">All Types</a></li>
+        <li><a class="dropdown-item" href="/listings?propertyType=Apartment&category=<%= encodeURIComponent(activeCat) %>&sort=<%= encodeURIComponent(activeSort) %>">Apartments</a></li>
+        <li><a class="dropdown-item" href="/listings?propertyType=Villa&category=<%= encodeURIComponent(activeCat) %>&sort=<%= encodeURIComponent(activeSort) %>">Villas</a></li>
+        <li><a class="dropdown-item" href="/listings?propertyType=Cabin&category=<%= encodeURIComponent(activeCat) %>&sort=<%= encodeURIComponent(activeSort) %>">Cabins</a></li>
+        <li><a class="dropdown-item" href="/listings?propertyType=Cottage&category=<%= encodeURIComponent(activeCat) %>&sort=<%= encodeURIComponent(activeSort) %>">Cottages</a></li>
+        <li><a class="dropdown-item" href="/listings?propertyType=Haveli&category=<%= encodeURIComponent(activeCat) %>&sort=<%= encodeURIComponent(activeSort) %>">Havelis &amp; Heritage</a></li>
+        <li><a class="dropdown-item" href="/listings?propertyType=Studio&category=<%= encodeURIComponent(activeCat) %>&sort=<%= encodeURIComponent(activeSort) %>">Studios</a></li>
       </ul>
     </div>
 
-    <!-- Sorting Dropdown -->
     <div class="dropdown">
       <button class="btn btn-sm btn-white border dropdown-toggle bg-white rounded-pill px-3 fw-medium" type="button" data-bs-toggle="dropdown">
-        <i class="fa-solid fa-arrow-down-short-wide me-1 text-secondary"></i> Sort: 
+        <i class="fa-solid fa-arrow-down-short-wide me-1 text-secondary"></i> Sort:
         <strong>
-          <% if (typeof currentSort !== 'undefined' && currentSort === 'price_asc') { %> Price: Low to High
-          <% } else if (typeof currentSort !== 'undefined' && currentSort === 'price_desc') { %> Price: High to Low
+          <% if (activeSort === 'price_asc') { %> Price: Low to High
+          <% } else if (activeSort === 'price_desc') { %> Price: High to Low
           <% } else { %> Recommended
           <% } %>
         </strong>
       </button>
       <ul class="dropdown-menu shadow-sm rounded-3">
-        <li><a class="dropdown-item" href="/listings?sort=newest<%= typeof selectedCategory !== 'undefined' ? '&category=' + selectedCategory : '' %>">Recommended (Newest)</a></li>
-        <li><a class="dropdown-item" href="/listings?sort=price_asc<%= typeof selectedCategory !== 'undefined' ? '&category=' + selectedCategory : '' %>">Price: Low to High</a></li>
-        <li><a class="dropdown-item" href="/listings?sort=price_desc<%= typeof selectedCategory !== 'undefined' ? '&category=' + selectedCategory : '' %>">Price: High to Low</a></li>
+        <li><a class="dropdown-item" href="/listings?sort=newest&category=<%= encodeURIComponent(activeCat) %>&propertyType=<%= encodeURIComponent(activePropType) %>">Recommended (Newest)</a></li>
+        <li><a class="dropdown-item" href="/listings?sort=price_asc&category=<%= encodeURIComponent(activeCat) %>&propertyType=<%= encodeURIComponent(activePropType) %>">Price: Low to High</a></li>
+        <li><a class="dropdown-item" href="/listings?sort=price_desc&category=<%= encodeURIComponent(activeCat) %>&propertyType=<%= encodeURIComponent(activePropType) %>">Price: High to Low</a></li>
       </ul>
     </div>
 
-    <!-- Active Filter Indicators -->
-    <% if ((typeof selectedCategory !== 'undefined' && selectedCategory !== 'All') || (typeof searchLocation !== 'undefined' && searchLocation)) { %>
+    <% if (isFilteredView) { %>
       <span class="text-secondary ms-1">
         Found <%= allListings.length %> <%= allListings.length === 1 ? 'stay' : 'stays' %>
       </span>
@@ -161,7 +263,88 @@
   </span>
 </div>
 
-<!-- Listings Grid or Empty State -->
+<!-- =========================================================
+     4. MOBILE HORIZONTAL PROPERTY COLLECTIONS (< 768px, Default View)
+     ========================================================= -->
+<% if (mobileCollections.length > 0) { %>
+  <div class="d-md-none mb-4">
+    <% for (let section of mobileCollections) { %>
+      <section class="wl-mobile-collection mb-4" aria-label="<%= section.title %>">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h2 class="wl-section-heading mb-0"><%= section.title %></h2>
+          <a href="<%= section.href %>" class="wl-section-link" aria-label="View all <%= section.title %>">
+            <span>See all</span>
+            <i class="fa-solid fa-chevron-right"></i>
+          </a>
+        </div>
+
+        <div class="wl-carousel-track">
+          <% for (let item of section.items) { %>
+            <%
+              let cRating = "New";
+              if (item.reviews && item.reviews.length > 0) {
+                const cSum = item.reviews.reduce((acc, r) => acc + (r.rating || 5), 0);
+                cRating = (cSum / item.reviews.length).toFixed(1);
+              }
+              const cSaved = _savedSet.has(item._id.toString());
+              const cImg = item.image && item.image.url ? item.image.url : (item.images && item.images.length > 0 ? item.images[0].url : 'https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=600&q=60');
+            %>
+            <article class="wl-carousel-card">
+              <div class="wl-carousel-img-wrap">
+                <a href="/listings/<%= item._id %>" class="d-block w-100 h-100">
+                  <img
+                    src="<%= cImg %>"
+                    alt="<%= cleanTitle(item.title) %>"
+                    loading="lazy"
+                    onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=600&q=60';">
+                </a>
+                <% if (item.featured) { %>
+                  <span class="badge-featured position-absolute top-0 start-0 m-2">Featured</span>
+                <% } %>
+                <button
+                  type="button"
+                  class="wl-card-heart-btn <%= cSaved ? 'is-saved' : '' %>"
+                  data-listing-id="<%= item._id %>"
+                  aria-label="<%= cSaved ? 'Remove from wishlist' : 'Save to wishlist' %>"
+                  aria-pressed="<%= cSaved ? 'true' : 'false' %>">
+                  <i class="<%= cSaved ? 'fa-solid fa-heart text-danger' : 'fa-regular fa-heart' %>"></i>
+                </button>
+              </div>
+              <a href="/listings/<%= item._id %>" class="text-decoration-none text-dark d-block pt-2">
+                <div class="d-flex justify-content-between align-items-baseline gap-1">
+                  <h3 class="wl-carousel-title text-truncate mb-0"><%= cleanTitle(item.title) %></h3>
+                  <span class="wl-carousel-rating text-nowrap">
+                    <i class="fa-solid fa-star text-warning me-1"></i><%= cRating %>
+                  </span>
+                </div>
+                <p class="wl-carousel-loc text-truncate mb-1"><%= item.location %>, <%= item.country %></p>
+                <div class="wl-carousel-price">
+                  <strong>&#8377;<%= item.price ? item.price.toLocaleString("en-IN") : "0" %></strong>
+                  <span class="text-muted fw-normal"> / night</span>
+                  <span class="tax-info tax-badge-info d-block" style="display: none !important;" data-tax-price="&#8377;<%= item.price ? Math.round(item.price * 1.18).toLocaleString('en-IN') : '' %> incl. tax"></span>
+                </div>
+              </a>
+            </article>
+          <% } %>
+        </div>
+      </section>
+    <% } %>
+
+    <div class="d-flex justify-content-between align-items-baseline mb-3 pt-1">
+      <h2 class="wl-section-heading mb-0">Explore all stays</h2>
+      <span class="text-muted small"><%= allListings.length %> places</span>
+    </div>
+  </div>
+<% } else if (allListings.length > 0) { %>
+  <div class="d-flex d-md-none justify-content-between align-items-baseline mb-3">
+    <h2 class="wl-section-heading mb-0"><%= activeSearch ? `Stays in "${activeSearch}"` : (activeCat !== 'All' ? activeCat : 'All stays') %></h2>
+    <span class="text-muted small"><%= allListings.length %> <%= allListings.length === 1 ? 'stay' : 'stays' %></span>
+  </div>
+<% } %>
+
+<!-- =========================================================
+     5. RESPONSIVE LISTINGS GRID (Mobile + Desktop)
+     ========================================================= -->
 <% if (allListings.length === 0) { %>
   <div class="text-center py-5 my-4 bg-white rounded-4 border p-4 shadow-sm">
     <div class="rounded-circle bg-light d-inline-flex align-items-center justify-content-center p-4 mb-3 text-secondary" style="width: 80px; height: 80px;">
@@ -185,101 +368,222 @@
           const sum = listing.reviews.reduce((acc, r) => acc + (r.rating || 5), 0);
           ratingText = (sum / listing.reviews.length).toFixed(1);
         }
+        const isCardSaved = _savedSet.has(listing._id.toString());
+        const cardImg = listing.image && listing.image.url ? listing.image.url : (listing.images && listing.images.length > 0 ? listing.images[0].url : 'https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=800&q=60');
       %>
       <div class="col">
-        <a href="/listings/<%= listing._id %>" class="text-decoration-none text-dark d-block h-100">
-          <div class="card listing-card h-100">
-            <!-- Property Image with Badges -->
-            <div class="card-img-wrapper">
-              <img 
-                src="<%= listing.image && listing.image.url ? listing.image.url : (listing.images && listing.images.length > 0 ? listing.images[0].url : 'https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=800&q=60') %>" 
-                class="listing-img" 
+        <article class="card listing-card h-100">
+          <!-- Property Image with Consistent Top-Right Wishlist Button -->
+          <div class="card-img-wrapper">
+            <a href="/listings/<%= listing._id %>" class="d-block w-100 h-100">
+              <img
+                src="<%= cardImg %>"
+                class="listing-img"
                 alt="<%= cleanTitle(listing.title) %>"
                 loading="lazy"
                 onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=800&q=60';">
-              
-              <!-- Badges -->
-              <div class="position-absolute top-0 start-0 m-2 d-flex gap-1 flex-wrap">
-                <% if (listing.featured) { %>
-                  <span class="badge-featured">
-                    <i class="fa-solid fa-star me-1"></i>Featured
-                  </span>
-                <% } %>
-                <% if (listing.propertyType) { %>
-                  <span class="badge-pill-blur">
-                    <%= listing.propertyType %>
-                  </span>
-                <% } %>
-              </div>
+            </a>
 
-              <% if (listing.category) { %>
-                <span class="badge-pill-blur position-absolute top-0 end-0 m-2">
-                  <%= listing.category %>
+            <!-- Top-left minimal badge -->
+            <div class="position-absolute top-0 start-0 m-2 d-flex gap-1 flex-wrap" style="pointer-events: none;">
+              <% if (listing.featured) { %>
+                <span class="badge-featured">
+                  <i class="fa-solid fa-star me-1"></i>Featured
+                </span>
+              <% } else if (listing.propertyType) { %>
+                <span class="badge-pill-blur">
+                  <%= listing.propertyType %>
                 </span>
               <% } %>
             </div>
 
-            <!-- Card Content Body -->
-            <div class="card-body px-1 pt-3 pb-1">
-              <div class="d-flex justify-content-between align-items-baseline mb-1">
-                <h6 class="card-title-text mb-0 text-truncate pe-2">
-                  <%= cleanTitle(listing.title) %>
-                </h6>
-                <div class="d-flex align-items-center text-nowrap small fw-semibold">
-                  <i class="fa-solid fa-star text-warning me-1" style="font-size: 11px;"></i>
-                  <span><%= ratingText %></span>
-                </div>
-              </div>
+            <!-- Consistent Top-Right Wishlist Heart Button -->
+            <button
+              type="button"
+              class="wl-card-heart-btn <%= isCardSaved ? 'is-saved' : '' %>"
+              data-listing-id="<%= listing._id %>"
+              aria-label="<%= isCardSaved ? 'Remove from wishlist' : 'Save to wishlist' %>"
+              aria-pressed="<%= isCardSaved ? 'true' : 'false' %>">
+              <i class="<%= isCardSaved ? 'fa-solid fa-heart text-danger' : 'fa-regular fa-heart' %>"></i>
+            </button>
+          </div>
 
-              <p class="card-location-text text-truncate mb-1">
-                <i class="fa-solid fa-location-dot me-1 text-danger" style="font-size: 11px;"></i><%= listing.location %>, <%= listing.country %>
-              </p>
-
-              <p class="card-specs-text mb-2">
-                <%= listing.maxGuests || 2 %> guests &middot; <%= listing.bedrooms || 1 %> bed &middot; <%= listing.bathrooms || 1 %> bath
-              </p>
-
-              <div class="pt-2 border-top d-flex justify-content-between align-items-baseline">
-                <div>
-                  <span class="price-night-text">&#8377;<%= listing.price ? listing.price.toLocaleString("en-IN") : "0" %></span>
-                  <span class="price-unit-text"> / night</span>
-                  <span class="tax-info tax-badge-info" style="display: none;">
-                    &middot; &#8377;<%= listing.price ? Math.round(listing.price * 1.18).toLocaleString("en-IN") : "" %> incl. tax
-                  </span>
-                </div>
+          <!-- Card Content Body -->
+          <a href="/listings/<%= listing._id %>" class="text-decoration-none text-dark d-block card-body px-1 pt-3 pb-1">
+            <div class="d-flex justify-content-between align-items-baseline mb-1">
+              <h3 class="card-title-text mb-0 text-truncate pe-2">
+                <%= cleanTitle(listing.title) %>
+              </h3>
+              <div class="d-flex align-items-center text-nowrap small fw-semibold">
+                <i class="fa-solid fa-star text-warning me-1" style="font-size: 11px;"></i>
+                <span><%= ratingText %></span>
               </div>
             </div>
-          </div>
-        </a>
+
+            <p class="card-location-text text-truncate mb-1">
+              <i class="fa-solid fa-location-dot me-1 text-danger" style="font-size: 11px;"></i><%= listing.location %>, <%= listing.country %>
+            </p>
+
+            <p class="card-specs-text mb-2">
+              <%= listing.maxGuests || 2 %> guests &middot; <%= listing.bedrooms || 1 %> bed &middot; <%= listing.bathrooms || 1 %> bath
+            </p>
+
+            <div class="pt-2 border-top d-flex justify-content-between align-items-baseline">
+              <div>
+                <span class="price-night-text">&#8377;<%= listing.price ? listing.price.toLocaleString("en-IN") : "0" %></span>
+                <span class="price-unit-text"> / night</span>
+                <span class="tax-info tax-badge-info" style="display: none;">
+                  &middot; &#8377;<%= listing.price ? Math.round(listing.price * 1.18).toLocaleString("en-IN") : "" %> incl. tax
+                </span>
+              </div>
+            </div>
+          </a>
+        </article>
       </div>
     <% } %>
   </div>
 <% } %>
 
-<!-- Tax Switch Toggle & Search Date Validation Script -->
-<script>
-  // Tax switch toggle
-  const taxSwitch = document.getElementById("taxSwitch");
-  if (taxSwitch) {
-    taxSwitch.addEventListener("change", () => {
-      const taxInfoElements = document.getElementsByClassName("tax-info");
-      for (let elem of taxInfoElements) {
-        elem.style.display = taxSwitch.checked ? "inline" : "none";
-      }
-    });
-  }
+<!-- =========================================================
+     6. MOBILE SEARCH & FILTERS MODAL SHEET (< 768px)
+     ========================================================= -->
+<div class="modal fade wl-sheet-modal" id="mobileSearchModal" tabindex="-1" aria-labelledby="mobileSearchModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-content border-0 rounded-top-4">
+      <div class="modal-header border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold fs-6" id="mobileSearchModalLabel">Search &amp; Filters</h5>
+        <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close search"></button>
+      </div>
+      <form method="GET" action="/listings/search" class="modal-body px-4 py-3 d-flex flex-column gap-3">
+        <div>
+          <label for="mobile-search-where" class="form-label fw-semibold small mb-1">Where to?</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+            <input id="mobile-search-where" type="text" name="location" value="<%= activeSearch %>" class="form-control border-start-0" style="font-size: 16px;" placeholder="City, destination, or stay" autocomplete="off">
+          </div>
+        </div>
 
-  // Date picker validation
-  const inDate = document.getElementById("search-checkin");
-  const outDate = document.getElementById("search-checkout");
-  if (inDate && outDate) {
+        <div class="row g-2">
+          <div class="col-6">
+            <label for="mobile-search-checkin" class="form-label fw-semibold small mb-1">Check in</label>
+            <input id="mobile-search-checkin" type="date" name="checkIn" value="<%= typeof checkIn !== 'undefined' ? checkIn : '' %>" class="form-control" style="font-size: 15px;">
+          </div>
+          <div class="col-6">
+            <label for="mobile-search-checkout" class="form-label fw-semibold small mb-1">Check out</label>
+            <input id="mobile-search-checkout" type="date" name="checkOut" value="<%= typeof checkOut !== 'undefined' ? checkOut : '' %>" class="form-control" style="font-size: 15px;">
+          </div>
+        </div>
+
+        <div class="row g-2">
+          <div class="col-6">
+            <label for="mobile-search-guests" class="form-label fw-semibold small mb-1">Guests</label>
+            <input id="mobile-search-guests" type="number" min="1" max="20" name="guests" value="<%= activeGuests %>" class="form-control" style="font-size: 16px;" placeholder="Any guests">
+          </div>
+          <div class="col-6">
+            <label for="mobile-search-type" class="form-label fw-semibold small mb-1">Property Type</label>
+            <select id="mobile-search-type" name="propertyType" class="form-select" style="font-size: 15px;">
+              <option value="All" <%= activePropType === 'All' ? 'selected' : '' %>>All Types</option>
+              <% for (let pt of ["Apartment", "Villa", "Cabin", "Cottage", "Haveli", "Studio", "Resort", "House"]) { %>
+                <option value="<%= pt %>" <%= activePropType === pt ? 'selected' : '' %>><%= pt %></option>
+              <% } %>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label for="mobile-search-sort" class="form-label fw-semibold small mb-1">Sort by</label>
+          <select id="mobile-search-sort" name="sort" class="form-select" style="font-size: 15px;">
+            <option value="newest" <%= activeSort === 'newest' ? 'selected' : '' %>>Recommended (Newest)</option>
+            <option value="price_asc" <%= activeSort === 'price_asc' ? 'selected' : '' %>>Price: Low to High</option>
+            <option value="price_desc" <%= activeSort === 'price_desc' ? 'selected' : '' %>>Price: High to Low</option>
+          </select>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center gap-2 pt-3 mt-auto border-top">
+          <a href="/listings" class="btn btn-link text-dark fw-semibold text-decoration-underline px-2">Clear all</a>
+          <button type="submit" class="btn btn-primary-custom px-4 py-2 rounded-pill flex-grow-1" style="min-height: 46px;">
+            <i class="fa-solid fa-magnifying-glass me-2"></i>Search stays
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Homepage Interactive Scripts: Tax Toggle, Date Validation & Card Wishlist -->
+<script>
+  (function () {
+    const isLoggedIn = <%= currUser ? 'true' : 'false' %>;
+
+    // Synchronized tax switches (desktop + mobile)
+    const taxSwitches = document.querySelectorAll(".tax-switch-input");
+    function applyTaxDisplay(checked) {
+      taxSwitches.forEach((sw) => { sw.checked = checked; });
+      document.querySelectorAll(".tax-info").forEach((el) => {
+        if (el.hasAttribute("data-tax-price")) {
+          el.textContent = checked ? el.getAttribute("data-tax-price") : "";
+          el.style.setProperty("display", checked ? "block" : "none", "important");
+        } else {
+          el.style.display = checked ? "inline" : "none";
+        }
+      });
+    }
+    taxSwitches.forEach((sw) => {
+      sw.addEventListener("change", () => applyTaxDisplay(sw.checked));
+    });
+
+    // Date validation pairs (desktop & mobile)
     const today = new Date().toISOString().split("T")[0];
-    inDate.min = today;
-    inDate.addEventListener("change", () => {
-      outDate.min = inDate.value;
-      if (outDate.value && outDate.value < inDate.value) {
-        outDate.value = inDate.value;
+    [
+      ["search-checkin", "search-checkout"],
+      ["mobile-search-checkin", "mobile-search-checkout"],
+    ].forEach(([inId, outId]) => {
+      const inEl = document.getElementById(inId);
+      const outEl = document.getElementById(outId);
+      if (inEl && outEl) {
+        inEl.min = today;
+        inEl.addEventListener("change", () => {
+          outEl.min = inEl.value;
+          if (outEl.value && outEl.value < inEl.value) outEl.value = inEl.value;
+        });
       }
     });
-  }
+
+    // Card Wishlist Heart Toggle (reuses existing POST /listings/:id/wishlist endpoint)
+    document.querySelectorAll(".wl-card-heart-btn").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!isLoggedIn) {
+          window.location.href = "/login";
+          return;
+        }
+        const listingId = btn.getAttribute("data-listing-id");
+        btn.disabled = true;
+        try {
+          const res = await fetch(`/listings/${listingId}/wishlist`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            // Sync all cards showing this listing (e.g. carousel + grid)
+            document.querySelectorAll(`.wl-card-heart-btn[data-listing-id="${listingId}"]`).forEach((b) => {
+              const icon = b.querySelector("i");
+              b.classList.toggle("is-saved", data.isSaved);
+              b.setAttribute("aria-pressed", data.isSaved ? "true" : "false");
+              b.setAttribute("aria-label", data.isSaved ? "Remove from wishlist" : "Save to wishlist");
+              if (icon) {
+                icon.className = data.isSaved ? "fa-solid fa-heart text-danger" : "fa-regular fa-heart";
+              }
+            });
+          }
+        } catch (err) {
+          console.error("Wishlist toggle error:", err);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  })();
 </script>

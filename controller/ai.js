@@ -52,8 +52,12 @@ module.exports.chat = async (req, res) => {
 
   const lower = query.toLowerCase();
 
-  // Extract constraints
-  const andConditions = [{ isPublished: true, status: { $ne: "rejected" } }];
+  // Enforce identical public visibility criteria as /listings (never expose pending/draft/rejected/unpublished)
+  const publicVisibilityFilter = {
+    isPublished: { $ne: false },
+    status: { $nin: ["pending", "rejected", "draft"] },
+  };
+  const andConditions = [publicVisibilityFilter];
 
   // 1. Destination / Location Extraction
   const locations = [
@@ -140,7 +144,7 @@ module.exports.chat = async (req, res) => {
   }
 
   // Query MongoDB
-  let filter = andConditions.length > 0 ? { $and: andConditions } : { isPublished: true };
+  let filter = andConditions.length > 0 ? { $and: andConditions } : publicVisibilityFilter;
   let recommendations = await Listing.find(filter)
     .populate("owner", "username")
     .sort({ featured: -1, createdAt: -1 })
@@ -150,7 +154,7 @@ module.exports.chat = async (req, res) => {
   if (recommendations.length === 0) {
     if (detectedLocation) {
       recommendations = await Listing.find({
-        isPublished: true,
+        ...publicVisibilityFilter,
         $or: [
           { location: { $regex: detectedLocation, $options: "i" } },
           { title: { $regex: detectedLocation, $options: "i" } },
@@ -160,7 +164,7 @@ module.exports.chat = async (req, res) => {
         .sort({ price: 1 })
         .limit(3);
     } else {
-      recommendations = await Listing.find({ isPublished: true, featured: true })
+      recommendations = await Listing.find({ ...publicVisibilityFilter, featured: true })
         .populate("owner", "username")
         .sort({ createdAt: -1 })
         .limit(3);
@@ -182,8 +186,8 @@ module.exports.chat = async (req, res) => {
 
     recommendations.forEach((item, idx) => {
       reply += `**${idx + 1}. [${item.title}](/listings/${item._id})**\n`;
-      reply += `📍 ${item.location}, ${item.country} &middot; 🏷️ **₹${item.price.toLocaleString("en-IN")}/night**\n`;
-      reply += `🏠 ${item.propertyType || "Stay"} &middot; 👥 Up to ${item.maxGuests || 2} guests &middot; Host: @${item.owner ? item.owner.username : "Host"}\n`;
+      reply += `📍 ${item.location}, ${item.country} · 🏷️ **₹${item.price.toLocaleString("en-IN")}/night**\n`;
+      reply += `🏠 ${item.propertyType || "Stay"} · 👥 Up to ${item.maxGuests || 2} guests · Host: @${item.owner ? item.owner.username : "Host"}\n`;
       if (item.amenities && item.amenities.length > 0) {
         reply += `✨ Highlights: ${item.amenities.slice(0, 3).join(", ")}\n`;
       }

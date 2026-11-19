@@ -49,16 +49,17 @@ module.exports.signup = async (req, res, next) => {
     }
 
     // 5. Auto-generate or sanitize username
+    const escapeRegex = (s) => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     if (!username) {
       const baseSlug = email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
       username = baseSlug || fullName.toLowerCase().replace(/[^a-zA-Z0-9]/g, "_");
       // Check if username taken, append random suffix if needed
-      const existingUserSlug = await User.findOne({ username: new RegExp("^" + username + "$", "i") });
+      const existingUserSlug = await User.findOne({ username: new RegExp("^" + escapeRegex(username) + "$", "i") });
       if (existingUserSlug) {
         username = `${username}_${Math.floor(100 + Math.random() * 900)}`;
       }
     } else {
-      const existingUsername = await User.findOne({ username: new RegExp("^" + username + "$", "i") });
+      const existingUsername = await User.findOne({ username: new RegExp("^" + escapeRegex(username) + "$", "i") });
       if (existingUsername) {
         req.flash("error", "That username is already taken. Please choose another.");
         return res.redirect("/signup");

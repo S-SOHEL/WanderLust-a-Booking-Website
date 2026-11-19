@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WanderLust</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>WanderLust — Discover Extraordinary Stays</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <!-- Font Awesome -->
@@ -11,7 +11,7 @@
     <!-- Google Font (Inter) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/rating.css">
@@ -20,16 +20,49 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.28.1/mapbox-gl.js"></script>
 </head>
 
-<body>
+<%
+  const _path = typeof currentPath !== "undefined" ? currentPath : "";
+  const _isListingDetail = /^\/listings\/[a-fA-F0-9]{24}$/.test(_path);
+  const _isAdminPage = _path.startsWith("/admin");
+  const _showMobileTabBar = !_isListingDetail && !_isAdminPage;
+%>
+
+<body class="<%= _isListingDetail ? 'has-mobile-booking-bar' : (_showMobileTabBar ? 'has-mobile-tab-bar' : '') %>">
     <%- include("../includes/navbar.ejs") %>
-    
-    <div class="container main-container">
+
+    <main class="container main-container <%= _isListingDetail ? 'listing-detail-main' : '' %>">
         <%- include("../includes/flash.ejs") %>
         <%- body %>
-    </div>
+    </main>
 
     <%- include("../includes/footer.ejs") %>
     <%- include("../includes/aiAssistant.ejs") %>
+
+    <% if (_showMobileTabBar) { %>
+      <!-- Mobile Bottom Navigation Bar (hidden on desktop and on listing detail pages) -->
+      <nav class="mobile-bottom-nav d-md-none" aria-label="Mobile primary navigation">
+        <a href="/listings" class="mobile-bottom-nav-item <%= (_path === '/' || _path === '/listings' || _path.startsWith('/listings/search')) ? 'active' : '' %>">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <span>Explore</span>
+        </a>
+        <a href="<%= currUser ? '/profile#wishlist' : '/login' %>" class="mobile-bottom-nav-item">
+          <i class="fa-regular fa-heart"></i>
+          <span>Wishlist</span>
+        </a>
+        <a href="<%= currUser ? '/bookings' : '/login' %>" class="mobile-bottom-nav-item <%= _path.startsWith('/bookings') ? 'active' : '' %>">
+          <i class="fa-solid fa-suitcase-rolling"></i>
+          <span>Trips</span>
+        </a>
+        <a href="/listings/new" class="mobile-bottom-nav-item <%= _path === '/listings/new' ? 'active' : '' %>">
+          <i class="fa-solid fa-house-chimney"></i>
+          <span>Host</span>
+        </a>
+        <a href="<%= currUser ? '/profile' : '/login' %>" class="mobile-bottom-nav-item <%= (_path === '/profile' || _path === '/login' || _path === '/signup') ? 'active' : '' %>">
+          <i class="fa-regular fa-circle-user"></i>
+          <span><%= currUser ? 'Profile' : 'Log in' %></span>
+        </a>
+      </nav>
+    <% } %>
 
     <!-- Bootstrap Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>

@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Booking = require("../models/booking.js");
 const Listing = require("../models/listing.js");
 
@@ -13,6 +14,10 @@ function generateBookingRef() {
 
 module.exports.createBooking = async (req, res) => {
   const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    req.flash("error", "Invalid property ID.");
+    return res.redirect("/listings");
+  }
   const { checkIn, checkOut, totalGuests = 1, specialRequests = "" } = req.body.booking || {};
 
   const listing = await Listing.findById(id);
@@ -21,9 +26,12 @@ module.exports.createBooking = async (req, res) => {
     return res.redirect("/listings");
   }
 
-  if (listing.isPublished === false) {
+  if (
+    listing.isPublished === false ||
+    ["pending", "rejected", "draft"].includes(listing.status)
+  ) {
     req.flash("error", "This property is currently not accepting new reservations.");
-    return res.redirect(`/listings/${id}`);
+    return res.redirect("/listings");
   }
 
   // Prevent host from booking their own place
@@ -131,6 +139,10 @@ module.exports.myBookings = async (req, res) => {
 
 module.exports.cancelBooking = async (req, res) => {
   const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    req.flash("error", "Invalid reservation ID.");
+    return res.redirect("/bookings");
+  }
   const booking = await Booking.findById(id).populate("listing");
 
   if (!booking) {

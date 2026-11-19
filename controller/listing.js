@@ -8,6 +8,11 @@ const mbxGeocoding = require("@mapbox/mapbox-sdk/services/geocoding");
 const mapToken = process.env.MAP_TOKEN;
 const geocodingClient = mapToken ? mbxGeocoding({ accessToken: mapToken }) : null;
 
+// Helper to safely escape user search input before regex queries
+function escapeRegex(str) {
+  return String(str || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 // Helper to validate and parse coordinate pairs
 function parseAndValidateCoordinates(manualLng, manualLat) {
   if (manualLng === undefined || manualLng === null || manualLng === "" ||
@@ -61,12 +66,13 @@ module.exports.index = async (req, res) => {
   // Location / Search query
   const searchTerm = (location || q || "").trim();
   if (searchTerm) {
+    const safeSearch = escapeRegex(searchTerm);
     andConditions.push({
       $or: [
-        { location: { $regex: searchTerm, $options: "i" } },
-        { country: { $regex: searchTerm, $options: "i" } },
-        { title: { $regex: searchTerm, $options: "i" } },
-        { description: { $regex: searchTerm, $options: "i" } },
+        { location: { $regex: safeSearch, $options: "i" } },
+        { country: { $regex: safeSearch, $options: "i" } },
+        { title: { $regex: safeSearch, $options: "i" } },
+        { description: { $regex: safeSearch, $options: "i" } },
       ],
     });
   }
@@ -103,13 +109,22 @@ module.exports.index = async (req, res) => {
   } else if (sort === "price_desc") {
     sortOption = { price: -1 };
   } else if (sort === "popular") {
-    sortOption = { "reviews.length": -1 };
+    sortOption = { featured: -1, createdAt: -1 };
   }
 
   const allListings = await Listing.find(filter).sort(sortOption);
 
+  let savedListingIds = [];
+  if (req.user) {
+    const freshUser = await User.findById(req.user._id).select("savedListings").lean();
+    if (freshUser && Array.isArray(freshUser.savedListings)) {
+      savedListingIds = freshUser.savedListings.map((id) => id.toString());
+    }
+  }
+
   res.render("listings/index.ejs", {
     allListings,
+    savedListingIds,
     selectedCategory: category || "All",
     searchLocation: searchTerm,
     minPrice: minPrice || "",
@@ -130,12 +145,13 @@ module.exports.searchListings = async (req, res) => {
   ];
 
   if (searchTerm) {
+    const safeSearch = escapeRegex(searchTerm);
     andConditions.push({
       $or: [
-        { location: { $regex: searchTerm, $options: "i" } },
-        { country: { $regex: searchTerm, $options: "i" } },
-        { title: { $regex: searchTerm, $options: "i" } },
-        { description: { $regex: searchTerm, $options: "i" } },
+        { location: { $regex: safeSearch, $options: "i" } },
+        { country: { $regex: safeSearch, $options: "i" } },
+        { title: { $regex: safeSearch, $options: "i" } },
+        { description: { $regex: safeSearch, $options: "i" } },
       ],
     });
   }
@@ -161,8 +177,17 @@ module.exports.searchListings = async (req, res) => {
 
   const allListings = await Listing.find(filter).sort(sortOption);
 
+  let savedListingIds = [];
+  if (req.user) {
+    const freshUser = await User.findById(req.user._id).select("savedListings").lean();
+    if (freshUser && Array.isArray(freshUser.savedListings)) {
+      savedListingIds = freshUser.savedListings.map((id) => id.toString());
+    }
+  }
+
   res.render("listings/index.ejs", {
     allListings,
+    savedListingIds,
     selectedCategory: "All",
     searchLocation: searchTerm,
     searchDates: dates || "",
@@ -183,6 +208,10 @@ module.exports.renderNewForm = (req, res) => {
 module.exports.showListing = async (req, res) => {
   await autoUpdateCompletedBookings();
   const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    req.flash("error", "Listing you requested does not exist!");
+    return res.redirect("/listings");
+  }
   const listing = await Listing.findById(id)
     .populate({
       path: "reviews",
@@ -191,7 +220,7 @@ module.exports.showListing = async (req, res) => {
         select: "username fullName profileImage",
       },
     })
-    .populate("owner", "username fullName email role profileImage");
+    .populate("owner", "username fullName email role profileImage createdAt");
 
   if (!listing) {
     req.flash("error", "Listing you requested does not exist!");

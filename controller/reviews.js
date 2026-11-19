@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Listing = require("../models/listing.js");
 const Review = require("../models/review.js");
 const Booking = require("../models/booking.js");
@@ -7,6 +8,10 @@ module.exports.createReview = async (req, res) => {
   await autoUpdateCompletedBookings();
 
   const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    req.flash("error", "Listing does not exist!");
+    return res.redirect("/listings");
+  }
   const listing = await Listing.findById(id);
 
   if (!listing) {

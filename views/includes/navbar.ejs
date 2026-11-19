@@ -1,10 +1,10 @@
-<nav class="navbar navbar-expand-md sticky-top py-2 bg-white">
+<nav class="navbar navbar-expand-md sticky-top bg-white wl-navbar" aria-label="Primary navigation">
   <div class="container-fluid px-lg-4 px-3">
-    <!-- Left: Brand Logo & Wordmark + Find Homes -->
-    <div class="d-flex align-items-center">
-      <a class="navbar-brand d-flex align-items-center text-decoration-none py-0 me-3" href="/listings">
+    <!-- Left: Brand Logo & Wordmark + Desktop Explore -->
+    <div class="d-flex align-items-center min-w-0">
+      <a class="navbar-brand d-flex align-items-center text-decoration-none py-0 me-2 me-md-3" href="/listings" aria-label="WanderLust Home">
         <div class="brand-icon-wrapper">
-          <i class="fa-solid fa-hotel" style="font-size: 1.15rem;"></i>
+          <i class="fa-solid fa-hotel"></i>
         </div>
         <span class="brand-text">WanderLust</span>
       </a>
@@ -17,18 +17,29 @@
       </div>
     </div>
 
-    <!-- Mobile Hamburger Toggle -->
-    <button class="navbar-toggler border-0 shadow-none p-1" type="button" data-bs-toggle="collapse" data-bs-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
+    <!-- Mobile Right Controls: Admin Badge (if admin) + Offcanvas Hamburger -->
+    <div class="d-flex d-md-none align-items-center gap-2">
+      <% if (currUser && currUser.role === 'admin') { %>
+        <a href="/admin/dashboard" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1 fw-semibold" style="font-size: 0.75rem; min-height: 36px;" aria-label="Admin Portal">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>Admin</span>
+          <% if (typeof adminAlertCount !== 'undefined' && adminAlertCount > 0) { %>
+            <span class="badge rounded-pill bg-danger" style="font-size: 0.65rem;"><%= adminAlertCount %></span>
+          <% } %>
+        </a>
+      <% } %>
+      <button class="wl-mobile-menu-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileNavDrawer" aria-controls="mobileNavDrawer" aria-label="Open navigation menu">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+    </div>
 
-    <!-- Right Actions / User Navigation -->
-    <div class="collapse navbar-collapse" id="navbarResponsive">
-      <div class="navbar-nav ms-auto align-items-md-center gap-2 pt-2 pt-md-0">
+    <!-- Desktop Right Actions / User Navigation (preserved >= 768px) -->
+    <div class="collapse navbar-collapse d-none d-md-flex" id="navbarResponsive">
+      <div class="navbar-nav ms-auto align-items-md-center gap-2">
         <!-- Host link -->
         <a class="nav-link nav-link-host px-3 text-nowrap" href="/listings/new">
-          <span class="d-none d-lg-inline">Airbnb your home</span>
-          <span class="d-lg-none">List your property</span>
+          <span class="d-none d-lg-inline">Host your home</span>
+          <span class="d-lg-none">List property</span>
         </a>
 
         <% if (currUser) { %>
@@ -49,9 +60,9 @@
             <i class="fa-solid fa-suitcase-rolling me-1 text-muted"></i>My Trips
           </a>
 
-          <!-- User Menu Pill Dropdown (Airbnb style) -->
+          <!-- User Menu Pill Dropdown -->
           <div class="dropdown ms-md-1">
-            <button class="user-menu-btn dropdown-toggle border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="userMenuDropdown">
+            <button class="user-menu-btn dropdown-toggle border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="userMenuDropdown" aria-label="Account menu">
               <i class="fa-solid fa-bars text-secondary" style="font-size: 13px;"></i>
               <% if (currUser.profileImage && currUser.profileImage.url) { %>
                 <img src="<%= currUser.profileImage.url %>" class="user-menu-avatar" alt="<%= currUser.fullName || currUser.username %>">
@@ -110,7 +121,7 @@
         <% } else { %>
           <!-- Logged Out User Menu Pill Dropdown -->
           <div class="dropdown ms-md-1">
-            <button class="user-menu-btn dropdown-toggle border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="loggedOutMenuDropdown">
+            <button class="user-menu-btn dropdown-toggle border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="loggedOutMenuDropdown" aria-label="Account menu">
               <i class="fa-solid fa-bars text-secondary" style="font-size: 13px;"></i>
               <div class="user-menu-avatar" style="background-color: #717171;">
                 <i class="fa-solid fa-user text-white" style="font-size: 13px;"></i>
@@ -126,7 +137,7 @@
               </li>
               <li><hr class="dropdown-divider my-1"></li>
               <li>
-                <a class="dropdown-item" href="/listings/new">Airbnb your home</a>
+                <a class="dropdown-item" href="/listings/new">Host your home</a>
               </li>
               <li>
                 <a class="dropdown-item" href="/listings">Find Homes</a>
@@ -138,3 +149,88 @@
     </div>
   </div>
 </nav>
+
+<!-- Mobile Offcanvas Drawer Navigation (< 768px) -->
+<div class="offcanvas offcanvas-end wl-mobile-drawer d-md-none" tabindex="-1" id="mobileNavDrawer" aria-labelledby="mobileNavDrawerLabel">
+  <div class="offcanvas-header border-bottom py-3 px-4">
+    <div class="d-flex align-items-center gap-2" id="mobileNavDrawerLabel">
+      <div class="brand-icon-wrapper" style="width: 32px; height: 32px;">
+        <i class="fa-solid fa-hotel" style="font-size: 0.9rem;"></i>
+      </div>
+      <span class="brand-text m-0" style="font-size: 1.15rem;">WanderLust</span>
+    </div>
+    <button type="button" class="btn-close shadow-none" data-bs-dismiss="offcanvas" aria-label="Close navigation menu"></button>
+  </div>
+
+  <div class="offcanvas-body px-3 py-3 d-flex flex-column">
+    <% if (currUser) { %>
+      <div class="d-flex align-items-center gap-3 p-3 bg-light rounded-4 mb-3 border">
+        <% if (currUser.profileImage && currUser.profileImage.url) { %>
+          <img src="<%= currUser.profileImage.url %>" class="rounded-circle flex-shrink-0" style="width: 46px; height: 46px; object-fit: cover;" alt="<%= currUser.fullName || currUser.username %>">
+        <% } else { %>
+          <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 46px; height: 46px; font-size: 1.1rem; background: linear-gradient(135deg, #fe424d, #ff5a5f);">
+            <%= ((currUser.fullName && currUser.fullName.trim()) ? currUser.fullName.trim()[0] : (currUser.username || "U")[0]).toUpperCase() %>
+          </div>
+        <% } %>
+        <div class="min-w-0">
+          <div class="fw-bold text-dark text-truncate"><%= currUser.fullName && currUser.fullName.trim() ? currUser.fullName.trim() : currUser.username %></div>
+          <div class="text-muted small text-truncate"><%= currUser.email %></div>
+        </div>
+      </div>
+    <% } else { %>
+      <div class="d-grid gap-2 mb-3">
+        <a href="/login" class="btn btn-primary-custom py-2 fw-semibold">Log in</a>
+        <a href="/signup" class="btn btn-outline-dark rounded-3 py-2 fw-semibold">Create an account</a>
+      </div>
+    <% } %>
+
+    <nav class="wl-drawer-links" aria-label="Mobile menu links">
+      <a class="wl-drawer-link" href="/listings">
+        <i class="fa-solid fa-compass"></i><span>Explore Stays</span>
+      </a>
+      <% if (currUser) { %>
+        <a class="wl-drawer-link" href="/profile#wishlist">
+          <i class="fa-solid fa-heart text-danger"></i><span>My Wishlist</span>
+        </a>
+        <a class="wl-drawer-link" href="/bookings">
+          <i class="fa-solid fa-suitcase-rolling"></i><span>My Trips</span>
+        </a>
+        <a class="wl-drawer-link" href="/profile">
+          <i class="fa-regular fa-user"></i><span>Profile &amp; Settings</span>
+        </a>
+        <a class="wl-drawer-link" href="/profile#properties">
+          <i class="fa-solid fa-building-user"></i><span>My Hosted Properties</span>
+        </a>
+      <% } %>
+      <a class="wl-drawer-link" href="/listings/new">
+        <i class="fa-solid fa-house-chimney-medical text-danger"></i><span>Host Your Property</span>
+      </a>
+
+      <% if (currUser && currUser.role === 'admin') { %>
+        <hr class="my-2">
+        <div class="px-3 py-1 text-uppercase fw-bold text-muted" style="font-size: 0.7rem; letter-spacing: 0.5px;">Administration</div>
+        <a class="wl-drawer-link text-danger fw-semibold" href="/admin/dashboard">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>Admin Dashboard</span>
+          <% if (typeof adminAlertCount !== 'undefined' && adminAlertCount > 0) { %>
+            <span class="badge rounded-pill bg-danger ms-auto"><%= adminAlertCount %></span>
+          <% } %>
+        </a>
+        <a class="wl-drawer-link" href="/admin/listings">
+          <i class="fa-solid fa-hotel"></i><span>Manage Properties</span>
+        </a>
+        <a class="wl-drawer-link" href="/admin/remediation">
+          <i class="fa-solid fa-clipboard-check"></i><span>Remediation Queue</span>
+        </a>
+      <% } %>
+    </nav>
+
+    <% if (currUser) { %>
+      <div class="mt-auto pt-3 border-top">
+        <a href="/logout" class="btn btn-outline-danger w-100 rounded-3 py-2 fw-semibold">
+          <i class="fa-solid fa-arrow-right-from-bracket me-2"></i>Log out
+        </a>
+      </div>
+    <% } %>
+  </div>
+</div>

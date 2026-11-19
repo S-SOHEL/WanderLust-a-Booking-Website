@@ -1,10 +1,10 @@
 <% layout("/layouts/boilerplate") %>
 
-<div class="container my-4">
-  <div class="row g-4">
+<div class="my-3 my-md-4">
+  <div class="row g-3 g-md-4">
     <!-- Profile Sidebar -->
     <div class="col-12 col-lg-4">
-      <div class="card border-0 shadow-sm rounded-4 p-4 text-center">
+      <div class="card border-0 shadow-sm rounded-4 p-3 p-md-4 text-center">
         <!-- Avatar -->
         <div class="mb-3 position-relative d-inline-block mx-auto">
           <% if (user.profileImage && user.profileImage.url) { %>
@@ -71,26 +71,26 @@
 
     <!-- Main Content Tabs -->
     <div class="col-12 col-lg-8">
-      <div class="card border-0 shadow-sm rounded-4 p-4">
-        <ul class="nav nav-pills mb-4 pb-2 border-bottom flex-nowrap overflow-auto" id="profileTab" role="tablist">
-          <li class="nav-item">
-            <button class="nav-link active fw-semibold" id="reservations-tab" data-bs-toggle="pill" data-bs-target="#reservations" type="button" role="tab">
+      <div class="card border-0 shadow-sm rounded-4 p-3 p-md-4">
+        <ul class="nav nav-pills mb-4 pb-2 border-bottom flex-nowrap overflow-auto gap-1 wl-profile-tabs" id="profileTab" role="tablist">
+          <li class="nav-item flex-shrink-0">
+            <button class="nav-link active fw-semibold text-nowrap" id="reservations-tab" data-bs-toggle="pill" data-bs-target="#reservations" type="button" role="tab">
               <i class="fa-solid fa-suitcase-rolling me-1"></i> My Trips (<%= bookings.length %>)
             </button>
           </li>
-          <li class="nav-item">
-            <button class="nav-link fw-semibold" id="properties-tab" data-bs-toggle="pill" data-bs-target="#properties" type="button" role="tab">
+          <li class="nav-item flex-shrink-0">
+            <button class="nav-link fw-semibold text-nowrap" id="properties-tab" data-bs-toggle="pill" data-bs-target="#properties" type="button" role="tab">
               <i class="fa-solid fa-hotel me-1"></i> My Properties (<%= myListings.length %>)
             </button>
           </li>
-          <li class="nav-item">
-            <button class="nav-link fw-semibold" id="wishlist-tab" data-bs-toggle="pill" data-bs-target="#wishlist" type="button" role="tab">
+          <li class="nav-item flex-shrink-0">
+            <button class="nav-link fw-semibold text-nowrap" id="wishlist-tab" data-bs-toggle="pill" data-bs-target="#wishlist" type="button" role="tab">
               <i class="fa-solid fa-heart me-1 text-danger"></i> My Wishlist (<span id="tabWishlistCount"><%= savedListings ? savedListings.length : 0 %></span>)
             </button>
           </li>
-          <li class="nav-item">
-            <button class="nav-link fw-semibold" id="settings-tab" data-bs-toggle="pill" data-bs-target="#settings" type="button" role="tab">
-              <i class="fa-solid fa-user-gear me-1"></i> Profile & Security
+          <li class="nav-item flex-shrink-0">
+            <button class="nav-link fw-semibold text-nowrap" id="settings-tab" data-bs-toggle="pill" data-bs-target="#settings" type="button" role="tab">
+              <i class="fa-solid fa-user-gear me-1"></i> Profile &amp; Security
             </button>
           </li>
         </ul>

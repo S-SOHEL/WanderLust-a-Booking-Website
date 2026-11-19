@@ -1,13 +1,18 @@
-<div class="bg-dark text-white py-3 px-4 mb-4 rounded-4 shadow-sm admin-subnav">
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-    <div class="d-flex align-items-center gap-2">
-      <div class="badge bg-danger px-3 py-2 text-uppercase fs-6" style="background-color: #fe424d !important;">
-        <i class="fa-solid fa-shield-halved me-1"></i> Admin Portal
+<div class="bg-dark text-white py-3 px-3 px-md-4 mb-4 rounded-4 shadow-sm admin-subnav">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 gap-lg-3">
+    <div class="d-flex align-items-center justify-content-between gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <div class="badge bg-danger px-3 py-2 text-uppercase" style="background-color: #fe424d !important; font-size: 0.78rem;">
+          <i class="fa-solid fa-shield-halved me-1"></i> Admin Portal
+        </div>
+        <span class="text-white-50 d-none d-md-inline small">| Platform Management</span>
       </div>
-      <span class="text-white-50 d-none d-md-inline">| Platform Management</span>
+      <a class="btn btn-sm btn-outline-light rounded-pill d-lg-none px-3" href="/listings" style="font-size: 0.75rem;">
+        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Site
+      </a>
     </div>
 
-    <ul class="nav nav-pills gap-1 flex-wrap">
+    <ul class="nav nav-pills gap-1 flex-nowrap flex-lg-wrap overflow-auto pb-1 pb-lg-0 wl-admin-nav-scroll">
       <li class="nav-item">
         <a class="nav-link text-white <%= typeof currentTab !== 'undefined' && currentTab === 'dashboard' ? 'active bg-danger' : '' %>" href="/admin/dashboard">
           <i class="fa-solid fa-chart-line me-1"></i> Dashboard

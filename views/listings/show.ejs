@@ -1,8 +1,23 @@
 <% layout("/layouts/boilerplate") %>
 
+<%
+  const _mapListingPayload = {
+    title: listing.title || "",
+    location: listing.location || "",
+    country: listing.country || "",
+    geometry: listing.geometry || null,
+    remediationReviewStatus: listing.remediationReviewStatus || null,
+  };
+  const _safeListingJson = JSON.stringify(_mapListingPayload)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+%>
 <script>
-  const mapToken = "<%= mapToken || process.env.MAP_TOKEN || '' %>";
-  const listing = <%- JSON.stringify(listing) %>;
+  const mapToken = "<%= mapToken || '' %>";
+  const listing = <%- _safeListingJson %>;
 </script>
 
 <%
@@ -26,11 +41,17 @@
   }
 
   const hostDisplayName = getHostDisplayName(listing.owner);
+  const hostSinceText = listing.owner && listing.owner.createdAt
+    ? new Date(listing.owner.createdAt).toLocaleDateString("en-IN", { month: "short", year: "numeric" })
+    : null;
+  const isHostVerifiedRole = listing.owner && (listing.owner.role === "host" || listing.owner.role === "admin");
 
-  // Collect all photos
+  // Collect ONLY real photos stored on listing (never fabricate additional images)
   const allPhotos = [];
   if (listing.images && listing.images.length > 0) {
-    listing.images.forEach(img => { if (img && img.url) allPhotos.push(img.url); });
+    listing.images.forEach((img) => {
+      if (img && img.url && !allPhotos.includes(img.url)) allPhotos.push(img.url);
+    });
   }
   if (allPhotos.length === 0 && listing.image && listing.image.url) {
     allPhotos.push(listing.image.url);
@@ -39,33 +60,108 @@
     allPhotos.push("https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=1200&q=80");
   }
 
-  // Reviews calculation
-  let avgRating = "New";
+  // Real reviews & rating calculation (never fabricate ratings)
+  let avgRating = null;
   let reviewCount = 0;
   if (listing.reviews && listing.reviews.length > 0) {
     reviewCount = listing.reviews.length;
-    const sum = listing.reviews.reduce((acc, r) => acc + (r.rating || 5), 0);
+    const sum = listing.reviews.reduce((acc, r) => acc + (r.rating || 0), 0);
     avgRating = (sum / reviewCount).toFixed(1);
   }
+  const isGuestFavourite = reviewCount >= 3 && avgRating && parseFloat(avgRating) >= 4.8;
+
+  // Clean property description text (eliminates pre-line blank leading lines)
+  const cleanDescription = (listing.description || "").trim();
+  const isLongDescription = cleanDescription.length > 220;
+
+  // Real amenities stored on listing
+  const storedAmenities = Array.isArray(listing.amenities) ? listing.amenities.filter(Boolean) : [];
+  const previewAmenities = storedAmenities.slice(0, 6);
+
+  function getAmenityIcon(a) {
+    const al = (a || "").toLowerCase();
+    if (al.includes("wifi")) return "fa-wifi";
+    if (al.includes("pool")) return "fa-person-swimming";
+    if (al.includes("kitchen")) return "fa-kitchen-set";
+    if (al.includes("ac") || al.includes("air condition")) return "fa-snowflake";
+    if (al.includes("park")) return "fa-square-parking";
+    if (al.includes("tv")) return "fa-tv";
+    if (al.includes("work") || al.includes("desk")) return "fa-laptop";
+    if (al.includes("wash")) return "fa-soap";
+    if (al.includes("gym")) return "fa-dumbbell";
+    if (al.includes("pet")) return "fa-paw";
+    if (al.includes("hot tub")) return "fa-hot-tub-person";
+    if (al.includes("mountain")) return "fa-mountain-sun";
+    if (al.includes("sea") || al.includes("beach")) return "fa-water";
+    if (al.includes("balcony") || al.includes("terrace")) return "fa-sun";
+    return "fa-circle-check";
+  }
+
+  const hasOwnerOrAdminAccess = Boolean(
+    currUser && (currUser.role === "admin" || (listing.owner && listing.owner._id.equals(currUser._id)))
+  );
+  const isCurrentUserOwner = Boolean(currUser && listing.owner && listing.owner._id.equals(currUser._id));
 %>
 
-<div class="container-fluid px-lg-5 px-3 mt-3 mb-5">
+<div class="wl-detail-shell mt-2 mt-md-3 mb-5">
   <div class="row justify-content-center">
     <div class="col-12 col-xl-11">
 
-      <!-- SECTION A: PROPERTY HEADER -->
-      <div class="mb-3">
+      <!-- =========================================================
+           SECTION A: PROPERTY HEADER (Mobile Back + Share/Save, Zero Header Clipping)
+           ========================================================= -->
+      <div class="wl-detail-topbar d-flex d-md-none justify-content-between align-items-center mb-2">
+        <a href="/listings" class="wl-icon-action-btn" id="mobileBackBtn" aria-label="Back to stays">
+          <i class="fa-solid fa-chevron-left"></i>
+          <span class="ms-1 fw-semibold" style="font-size: 0.85rem;">Stays</span>
+        </a>
+        <div class="d-flex align-items-center gap-2">
+          <button class="wl-icon-action-btn share-trigger-btn" type="button" aria-label="Share this stay">
+            <i class="fa-solid fa-arrow-up-from-bracket"></i>
+          </button>
+          <button class="wl-icon-action-btn save-trigger-btn" type="button" data-listing-id="<%= listing._id %>" aria-label="<%= isSaved ? 'Remove from wishlist' : 'Save to wishlist' %>" aria-pressed="<%= isSaved ? 'true' : 'false' %>">
+            <i class="<%= isSaved ? 'fa-solid fa-heart text-danger' : 'fa-regular fa-heart' %> save-heart-icon"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Pending / Rejection Banners (Admin / Host View) -->
+      <% if (listing.status === 'pending') { %>
+        <div class="alert alert-warning rounded-4 shadow-sm p-3 mb-3 d-flex align-items-center">
+          <i class="fa-solid fa-hourglass-half fs-4 me-3 text-warning"></i>
+          <div>
+            <h6 class="fw-bold mb-0">Under Review</h6>
+            <small class="text-muted">This property is pending approval by administrators and is not visible in public searches.</small>
+          </div>
+        </div>
+      <% } else if (listing.status === 'rejected') { %>
+        <div class="alert alert-danger rounded-4 shadow-sm p-3 mb-3 d-flex align-items-center">
+          <i class="fa-solid fa-circle-exclamation fs-4 me-3 text-danger"></i>
+          <div>
+            <h6 class="fw-bold mb-0">Submission Declined</h6>
+            <small><%= listing.rejectionReason || "Listing does not satisfy quality guidelines." %></small>
+          </div>
+        </div>
+      <% } %>
+
+      <!-- Desktop Header (Title + Meta + Share/Save above gallery) -->
+      <header class="wl-detail-header d-none d-md-block mb-3">
         <h1 class="listing-header-title mb-2"><%= cleanTitle(listing.title) %></h1>
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 listing-header-sub">
           <div class="d-flex flex-wrap align-items-center gap-2">
-            <span class="fw-semibold text-dark">
-              <i class="fa-solid fa-star text-warning me-1"></i><%= avgRating %>
-            </span>
-            <% if (reviewCount > 0) { %>
+            <% if (avgRating) { %>
+              <span class="fw-semibold text-dark">
+                <i class="fa-solid fa-star text-warning me-1"></i><%= avgRating %>
+              </span>
               <span>&middot;</span>
               <a href="#reviewsSection" class="text-dark fw-semibold text-decoration-underline">
                 <%= reviewCount %> <%= reviewCount === 1 ? 'review' : 'reviews' %>
               </a>
+            <% } else { %>
+              <span class="fw-semibold text-dark"><i class="fa-solid fa-sparkles text-danger me-1"></i>New stay</span>
+            <% } %>
+            <% if (isGuestFavourite) { %>
+              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill px-2 py-1">Guest favourite</span>
             <% } %>
             <span>&middot;</span>
             <span class="text-secondary">
@@ -79,43 +175,94 @@
             <% } %>
           </div>
 
-          <!-- Share & Save Actions -->
           <div class="d-flex align-items-center gap-2">
-            <button class="btn-header-action" type="button" id="shareBtn" title="Share this stay">
+            <button class="btn-header-action share-trigger-btn" type="button" id="shareBtn" title="Share this stay">
               <i class="fa-solid fa-arrow-up-from-bracket"></i>
-              <span>Share</span>
+              <span class="share-text">Share</span>
             </button>
-            <button class="btn-header-action" type="button" id="saveBtn" data-listing-id="<%= listing._id %>" title="<%= isSaved ? 'Remove from wishlist' : 'Save to wishlist' %>">
-              <i class="<%= isSaved ? 'fa-solid fa-heart text-danger' : 'fa-regular fa-heart' %>" id="saveHeartIcon"></i>
-              <span id="saveText"><%= isSaved ? 'Saved' : 'Save' %></span>
+            <button class="btn-header-action save-trigger-btn" type="button" id="saveBtn" data-listing-id="<%= listing._id %>" title="<%= isSaved ? 'Remove from wishlist' : 'Save to wishlist' %>" aria-pressed="<%= isSaved ? 'true' : 'false' %>">
+              <i class="<%= isSaved ? 'fa-solid fa-heart text-danger' : 'fa-regular fa-heart' %> save-heart-icon" id="saveHeartIcon"></i>
+              <span class="save-text" id="saveText"><%= isSaved ? 'Saved' : 'Save' %></span>
             </button>
           </div>
         </div>
+      </header>
+
+      <!-- =========================================================
+           SECTION B: PREMIUM PHOTO GALLERY
+           Mobile: Swipeable Scroll-Snap + Real Thumbnails + Counter
+           Desktop: Preserved 1/2/3/4/5 Mosaic Grid
+           ========================================================= -->
+      <!-- Mobile Gallery (< 992px) -->
+      <div class="wl-mobile-gallery d-lg-none mb-3">
+        <div class="wl-mobile-gallery-stage position-relative">
+          <div class="wl-mobile-gallery-track" id="mobileGalleryTrack" aria-label="Property photos">
+            <% allPhotos.forEach((photo, idx) => { %>
+              <div class="wl-mobile-gallery-slide" data-bs-toggle="modal" data-bs-target="#photoGalleryModal" data-slide-index="<%= idx %>">
+                <img
+                  src="<%= photo %>"
+                  alt="<%= cleanTitle(listing.title) %> - Photo <%= idx + 1 %>"
+                  loading="<%= idx === 0 ? 'eager' : 'lazy' %>"
+                  onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=1200&q=80';">
+              </div>
+            <% }); %>
+          </div>
+
+          <!-- Counter & Fullscreen Lightbox Trigger -->
+          <button type="button" class="wl-photo-counter-pill" data-bs-toggle="modal" data-bs-target="#photoGalleryModal" data-slide-index="0" aria-label="View all <%= allPhotos.length %> photos">
+            <i class="fa-regular fa-images me-1"></i>
+            <span id="mobileGalleryCounter">1</span> / <%= allPhotos.length %>
+          </button>
+        </div>
+
+        <!-- Additional Real Thumbnails Strip (ONLY shown when multiple real photos exist) -->
+        <% if (allPhotos.length > 1) { %>
+          <div class="wl-mobile-thumbs mt-2" aria-label="Photo thumbnails">
+            <% allPhotos.forEach((photo, idx) => { %>
+              <button type="button" class="wl-mobile-thumb-btn <%= idx === 0 ? 'active' : '' %>" data-thumb-index="<%= idx %>" aria-label="View photo <%= idx + 1 %>">
+                <img src="<%= photo %>" alt="<%= cleanTitle(listing.title) %> thumbnail <%= idx + 1 %>" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=300&q=60';">
+              </button>
+            <% }); %>
+            <button type="button" class="wl-mobile-thumb-all" data-bs-toggle="modal" data-bs-target="#photoGalleryModal" data-slide-index="0">
+              <i class="fa-solid fa-grip"></i>
+              <span>All <%= allPhotos.length %></span>
+            </button>
+          </div>
+        <% } %>
       </div>
 
-      <!-- Pending / Rejection Banners (Admin / Host View) -->
-      <% if (listing.status === 'pending') { %>
-        <div class="alert alert-warning rounded-4 shadow-sm p-3 mb-4 d-flex align-items-center">
-          <i class="fa-solid fa-hourglass-half fs-4 me-3 text-warning"></i>
-          <div>
-            <h6 class="fw-bold mb-0">Under Review</h6>
-            <small class="text-muted">This property is pending approval by administrators and is not visible in public searches.</small>
-          </div>
+      <!-- Mobile Title & Core Meta Block (below hero photo, Airbnb-inspired hierarchy) -->
+      <header class="wl-detail-header-mobile d-md-none pb-3 border-bottom">
+        <h1 class="listing-header-title mb-2"><%= cleanTitle(listing.title) %></h1>
+        <p class="text-secondary small mb-2">
+          <i class="fa-solid fa-location-dot text-danger me-1"></i><%= listing.location %>, <%= listing.country %>
+        </p>
+        <div class="d-flex flex-wrap align-items-center gap-2 small">
+          <% if (avgRating) { %>
+            <span class="fw-bold text-dark">
+              <i class="fa-solid fa-star text-warning me-1"></i><%= avgRating %>
+            </span>
+            <a href="#reviewsSection" class="text-dark fw-semibold text-decoration-underline">
+              (<%= reviewCount %> <%= reviewCount === 1 ? 'review' : 'reviews' %>)
+            </a>
+          <% } else { %>
+            <span class="badge bg-light text-dark border rounded-pill px-2 py-1 fw-semibold">New listing</span>
+          <% } %>
+          <% if (isGuestFavourite) { %>
+            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill px-2 py-1 fw-semibold">Guest favourite</span>
+          <% } %>
+          <% if (listing.propertyType) { %>
+            <span class="badge bg-light text-secondary border rounded-pill px-2 py-1"><%= listing.propertyType %></span>
+          <% } %>
+          <% if (listing.category) { %>
+            <span class="badge bg-light text-secondary border rounded-pill px-2 py-1"><%= listing.category %></span>
+          <% } %>
         </div>
-      <% } else if (listing.status === 'rejected') { %>
-        <div class="alert alert-danger rounded-4 shadow-sm p-3 mb-4 d-flex align-items-center">
-          <i class="fa-solid fa-circle-exclamation fs-4 me-3 text-danger"></i>
-          <div>
-            <h6 class="fw-bold mb-0">Submission Declined</h6>
-            <small><%= listing.rejectionReason || "Listing does not satisfy quality guidelines." %></small>
-          </div>
-        </div>
-      <% } %>
+      </header>
 
-      <!-- SECTION B: PREMIUM PHOTO GALLERY -->
-      <div class="gallery-container">
+      <!-- Desktop Photo Gallery Mosaic (preserved >= 992px) -->
+      <div class="gallery-container d-none d-lg-block">
         <% if (allPhotos.length >= 5) { %>
-          <!-- 5+ Photo Mosaic Grid -->
           <div class="gallery-grid-5">
             <div class="gallery-item gallery-item-main" data-bs-toggle="modal" data-bs-target="#photoGalleryModal" data-slide-index="0">
               <img src="<%= allPhotos[0] %>" alt="<%= cleanTitle(listing.title) %>" loading="eager" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=1200&q=80';">
@@ -127,215 +274,231 @@
             <% } %>
           </div>
         <% } else if (allPhotos.length === 4) { %>
-          <!-- 4-Photo Balanced Grid -->
           <div class="gallery-grid-4">
             <div class="gallery-item gallery-item-main" data-bs-toggle="modal" data-bs-target="#photoGalleryModal" data-slide-index="0">
-              <img src="<%= allPhotos[0] %>" alt="<%= cleanTitle(listing.title) %>" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=1200&q=80';">
+              <img src="<%= allPhotos[0] %>" alt="<%= cleanTitle(listing.title) %>" loading="eager" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=1200&q=80';">
             </div>
             <% for (let i = 1; i < 4; i++) { %>
               <div class="gallery-item" data-bs-toggle="modal" data-bs-target="#photoGalleryModal" data-slide-index="<%= i %>">
-                <img src="<%= allPhotos[i] %>" alt="<%= cleanTitle(listing.title) %> - Photo <%= i + 1 %>" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=800&q=80';">
+                <img src="<%= allPhotos[i] %>" alt="<%= cleanTitle(listing.title) %> - Photo <%= i + 1 %>" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=800&q=80';">
               </div>
             <% } %>
           </div>
         <% } else if (allPhotos.length === 3) { %>
-          <!-- 3-Photo Grid -->
           <div class="gallery-grid-3">
             <div class="gallery-item gallery-item-main" data-bs-toggle="modal" data-bs-target="#photoGalleryModal" data-slide-index="0">
-              <img src="<%= allPhotos[0] %>" alt="<%= cleanTitle(listing.title) %>" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=1200&q=80';">
+              <img src="<%= allPhotos[0] %>" alt="<%= cleanTitle(listing.title) %>" loading="eager" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=1200&q=80';">
             </div>
             <% for (let i = 1; i < 3; i++) { %>
               <div class="gallery-item" data-bs-toggle="modal" data-bs-target="#photoGalleryModal" data-slide-index="<%= i %>">
-                <img src="<%= allPhotos[i] %>" alt="<%= cleanTitle(listing.title) %> - Photo <%= i + 1 %>" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=800&q=80';">
+                <img src="<%= allPhotos[i] %>" alt="<%= cleanTitle(listing.title) %> - Photo <%= i + 1 %>" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=800&q=80';">
               </div>
             <% } %>
           </div>
         <% } else if (allPhotos.length === 2) { %>
-          <!-- 2-Photo Grid -->
           <div class="gallery-grid-2">
             <div class="gallery-item" data-bs-toggle="modal" data-bs-target="#photoGalleryModal" data-slide-index="0">
-              <img src="<%= allPhotos[0] %>" alt="<%= cleanTitle(listing.title) %>" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=1200&q=80';">
+              <img src="<%= allPhotos[0] %>" alt="<%= cleanTitle(listing.title) %>" loading="eager" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=1200&q=80';">
             </div>
             <div class="gallery-item" data-bs-toggle="modal" data-bs-target="#photoGalleryModal" data-slide-index="1">
-              <img src="<%= allPhotos[1] %>" alt="<%= cleanTitle(listing.title) %> - Photo 2" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=1200&q=80';">
+              <img src="<%= allPhotos[1] %>" alt="<%= cleanTitle(listing.title) %> - Photo 2" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=1200&q=80';">
             </div>
           </div>
         <% } else { %>
-          <!-- 1-Photo Hero Banner -->
           <div class="gallery-single" data-bs-toggle="modal" data-bs-target="#photoGalleryModal" data-slide-index="0">
-            <img src="<%= allPhotos[0] %>" alt="<%= cleanTitle(listing.title) %>" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=1200&q=80';">
+            <img src="<%= allPhotos[0] %>" alt="<%= cleanTitle(listing.title) %>" loading="eager" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=1200&q=80';">
           </div>
         <% } %>
 
-        <!-- "Show all photos" Button -->
         <button class="btn-show-all-photos" type="button" data-bs-toggle="modal" data-bs-target="#photoGalleryModal" data-slide-index="0">
           <i class="fa-solid fa-grip"></i>
-          <span>Show all <%= allPhotos.length %> photos</span>
+          <span><%= allPhotos.length > 1 ? `Show all ${allPhotos.length} photos` : 'View full photo' %></span>
         </button>
       </div>
 
-      <!-- MAIN CONTENT: 2-COLUMN LAYOUT -->
+      <!-- =========================================================
+           MAIN CONTENT: 2-COLUMN DESKTOP / CLEAN SINGLE-COLUMN MOBILE
+           ========================================================= -->
       <div class="row g-lg-5 g-4">
-        
-        <!-- LEFT COLUMN: Host, Description, Amenities, Sleeping, Reviews, Map -->
+
+        <!-- LEFT COLUMN: Specs, Host, Description, Amenities, Sleeping, Reviews, Map, Policies -->
         <div class="col-12 col-lg-7">
-          
-          <!-- SECTION C: HOST INFORMATION -->
-          <div class="d-flex justify-content-between align-items-center pb-4 border-bottom">
-            <div>
-              <h3 class="fw-bold fs-4 mb-1">
-                Hosted by <%= hostDisplayName %>
-              </h3>
-              <p class="text-secondary mb-0 small">
-                <%= listing.maxGuests || 2 %> guests &middot; 
-                <%= listing.bedrooms || 1 %> <%= listing.bedrooms === 1 ? 'bedroom' : 'bedrooms' %> &middot; 
-                <%= listing.beds || 1 %> <%= listing.beds === 1 ? 'bed' : 'beds' %> &middot; 
-                <%= listing.bathrooms || 1 %> <%= listing.bathrooms === 1 ? 'bathroom' : 'bathrooms' %>
-              </p>
-            </div>
-            <div>
-              <% if (listing.owner && listing.owner.profileImage && listing.owner.profileImage.url) { %>
-                <img src="<%= listing.owner.profileImage.url %>" class="host-section-avatar" alt="<%= hostDisplayName %>">
-              <% } else { %>
-                <div class="host-section-avatar">
-                  <%= (hostDisplayName[0] || "H").toUpperCase() %>
-                </div>
-              <% } %>
-            </div>
-          </div>
 
-          <!-- Feature Highlights (Airbnb Style) -->
-          <div class="py-4 border-bottom">
+          <!-- SECTION C & D: PROPERTY SPECS + HOST INFORMATION -->
+          <section class="wl-detail-section py-3 py-md-4 border-bottom" aria-label="Property overview and host">
+            <!-- Property Capacity Summary -->
+            <div class="d-flex justify-content-between align-items-center gap-3">
+              <div class="min-w-0">
+                <h2 class="fw-bold fs-5 mb-1">
+                  <%= listing.propertyType || "Stay" %> hosted by <%= hostDisplayName %>
+                </h2>
+                <p class="text-secondary mb-0 small">
+                  <%= listing.maxGuests || 2 %> <%= (listing.maxGuests || 2) === 1 ? 'guest' : 'guests' %>
+                  <% if (listing.bedrooms && listing.bedrooms > 0) { %>
+                    &middot; <%= listing.bedrooms %> <%= listing.bedrooms === 1 ? 'bedroom' : 'bedrooms' %>
+                  <% } %>
+                  <% if (listing.beds && listing.beds > 0) { %>
+                    &middot; <%= listing.beds %> <%= listing.beds === 1 ? 'bed' : 'beds' %>
+                  <% } %>
+                  <% if (listing.bathrooms && listing.bathrooms > 0) { %>
+                    &middot; <%= listing.bathrooms %> <%= listing.bathrooms === 1 ? 'bathroom' : 'bathrooms' %>
+                  <% } %>
+                </p>
+              </div>
+              <div class="flex-shrink-0">
+                <% if (listing.owner && listing.owner.profileImage && listing.owner.profileImage.url) { %>
+                  <img src="<%= listing.owner.profileImage.url %>" class="host-section-avatar" alt="<%= hostDisplayName %>">
+                <% } else { %>
+                  <div class="host-section-avatar" aria-hidden="true">
+                    <%= (hostDisplayName[0] || "H").toUpperCase() %>
+                  </div>
+                <% } %>
+              </div>
+            </div>
+
+            <!-- Host Verification / Duration Metadata -->
+            <% if (isHostVerifiedRole || hostSinceText) { %>
+              <div class="d-flex flex-wrap align-items-center gap-2 mt-2 small text-secondary">
+                <% if (isHostVerifiedRole) { %>
+                  <span class="badge bg-light text-dark border rounded-pill px-2 py-1 fw-medium">
+                    <i class="fa-solid fa-shield-halved text-danger me-1"></i>Verified Host
+                  </span>
+                <% } %>
+                <% if (hostSinceText) { %>
+                  <span><i class="fa-regular fa-calendar me-1"></i>Hosting since <%= hostSinceText %></span>
+                <% } %>
+              </div>
+            <% } %>
+          </section>
+
+          <!-- Key Booking Highlights -->
+          <section class="wl-detail-section py-3 py-md-4 border-bottom" aria-label="Stay highlights">
             <div class="feature-highlight-item">
-              <div class="feature-highlight-icon">
-                <i class="fa-solid fa-door-open"></i>
-              </div>
+              <div class="feature-highlight-icon"><i class="fa-solid fa-door-open"></i></div>
               <div>
-                <div class="feature-highlight-title">Self check-in</div>
-                <div class="feature-highlight-desc">Check yourself in with the keypad or door lock upon arrival.</div>
+                <div class="feature-highlight-title">Seamless arrival</div>
+                <div class="feature-highlight-desc">Arrival and check-in instructions are shared after host confirmation.</div>
               </div>
             </div>
 
             <div class="feature-highlight-item">
-              <div class="feature-highlight-icon">
-                <i class="fa-solid fa-medal text-warning"></i>
-              </div>
-              <div>
-                <div class="feature-highlight-title">Experienced hospitality</div>
-                <div class="feature-highlight-desc"><%= hostDisplayName %> provides verified amenities and responsive guest communication.</div>
-              </div>
-            </div>
-
-            <div class="feature-highlight-item mb-0">
-              <div class="feature-highlight-icon">
-                <i class="fa-solid fa-calendar-xmark text-danger"></i>
-              </div>
+              <div class="feature-highlight-icon"><i class="fa-solid fa-calendar-check text-danger"></i></div>
               <div>
                 <div class="feature-highlight-title">Free cancellation before 48 hours</div>
                 <div class="feature-highlight-desc">Cancel up to 48 hours before check-in for a full reservation refund.</div>
               </div>
             </div>
-          </div>
 
-          <!-- SECTION D: ABOUT THIS ACCOMMODATION -->
-          <div class="py-4 border-bottom">
-            <h4 class="fw-bold fs-5 mb-3">About this accommodation</h4>
-            <p class="text-secondary" style="line-height: 1.8; white-space: pre-line; font-size: 0.95rem;">
-              <%= listing.description %>
-            </p>
-          </div>
+            <div class="feature-highlight-item mb-0">
+              <div class="feature-highlight-icon"><i class="fa-solid fa-shield-halved text-success"></i></div>
+              <div>
+                <div class="feature-highlight-title">WanderLust Guest Protection</div>
+                <div class="feature-highlight-desc">Every reservation request is reviewed and tracked through your Trips dashboard.</div>
+              </div>
+            </div>
+          </section>
 
-          <!-- WHAT THIS PLACE OFFERS (AMENITIES) -->
-          <% if (listing.amenities && listing.amenities.length > 0) { %>
-            <div class="py-4 border-bottom">
-              <h4 class="fw-bold fs-5 mb-3">What this place offers</h4>
-              <div class="row g-3">
-                <% for (let a of listing.amenities) { %>
-                  <%
-                    let aIcon = "fa-circle-check";
-                    const al = a.toLowerCase();
-                    if (al.includes("wifi")) aIcon = "fa-wifi";
-                    else if (al.includes("pool")) aIcon = "fa-person-swimming";
-                    else if (al.includes("kitchen")) aIcon = "fa-kitchen-set";
-                    else if (al.includes("ac") || al.includes("air condition")) aIcon = "fa-snowflake";
-                    else if (al.includes("park")) aIcon = "fa-square-parking";
-                    else if (al.includes("tv")) aIcon = "fa-tv";
-                    else if (al.includes("work") || al.includes("desk")) aIcon = "fa-laptop";
-                    else if (al.includes("wash")) aIcon = "fa-soap";
-                    else if (al.includes("gym")) aIcon = "fa-dumbbell";
-                    else if (al.includes("pet")) aIcon = "fa-paw";
-                    else if (al.includes("hot tub")) aIcon = "fa-hot-tub-person";
-                  %>
-                  <div class="col-6 col-md-4">
-                    <div class="amenity-card">
-                      <i class="fa-solid <%= aIcon %>"></i>
-                      <span><%= a %></span>
-                    </div>
+          <!-- SECTION E: PROPERTY DESCRIPTION (No blank leading gap, collapsible on long copy) -->
+          <section class="wl-detail-section py-3 py-md-4 border-bottom" aria-label="About this stay">
+            <h2 class="fw-bold fs-5 mb-2">About this place</h2>
+            <p id="propertyDescriptionText" class="wl-description-text text-secondary mb-0 <%= isLongDescription ? 'is-clamped' : '' %>"><%= cleanDescription %></p>
+            <% if (isLongDescription) { %>
+              <button type="button" id="toggleDescriptionBtn" class="btn btn-link p-0 mt-2 text-dark fw-bold text-decoration-underline small" aria-expanded="false">
+                Show more <i class="fa-solid fa-chevron-right ms-1" style="font-size: 0.7rem;"></i>
+              </button>
+            <% } %>
+          </section>
+
+          <!-- SECTION F: AMENITIES (Strict 2-column mobile grid + Show all modal; only real stored amenities) -->
+          <% if (storedAmenities.length > 0) { %>
+            <section class="wl-detail-section py-3 py-md-4 border-bottom" aria-label="Amenities">
+              <h2 class="fw-bold fs-5 mb-3">What this place offers</h2>
+              <div class="wl-amenities-grid">
+                <% for (let a of previewAmenities) { %>
+                  <div class="amenity-card">
+                    <i class="fa-solid <%= getAmenityIcon(a) %>" aria-hidden="true"></i>
+                    <span><%= a %></span>
                   </div>
                 <% } %>
               </div>
-            </div>
+              <% if (storedAmenities.length > 6) { %>
+                <button type="button" class="btn btn-outline-dark rounded-3 mt-3 px-4 py-2 fw-semibold small" data-bs-toggle="modal" data-bs-target="#amenitiesModal">
+                  Show all <%= storedAmenities.length %> amenities
+                </button>
+              <% } %>
+            </section>
           <% } %>
 
-          <!-- SLEEPING ARRANGEMENTS -->
-          <div class="py-4 border-bottom">
-            <h4 class="fw-bold fs-5 mb-3">Where you'll sleep</h4>
-            <div class="row g-3">
-              <% const totalBeds = listing.bedrooms || 1; %>
-              <% for (let b = 1; b <= Math.min(totalBeds, 3); b++) { %>
-                <div class="col-6 col-md-4">
+          <!-- SECTION G: SLEEPING ARRANGEMENTS (Only when real bedroom data exists; no invented bed types) -->
+          <% if (listing.bedrooms && listing.bedrooms > 0) { %>
+            <section class="wl-detail-section py-3 py-md-4 border-bottom" aria-label="Sleeping arrangements">
+              <h2 class="fw-bold fs-5 mb-3">Where you'll sleep</h2>
+              <div class="wl-sleeping-grid">
+                <%
+                  const bedroomCount = Math.min(listing.bedrooms, 6);
+                  const totalBedsCount = listing.beds && listing.beds > 0 ? listing.beds : null;
+                %>
+                <% for (let b = 1; b <= bedroomCount; b++) { %>
                   <div class="sleeping-arrangement-card">
-                    <i class="fa-solid fa-bed"></i>
-                    <h6 class="fw-bold mb-1" style="font-size: 0.9rem;">Bedroom <%= b %></h6>
-                    <small class="text-secondary">1 queen bed</small>
+                    <i class="fa-solid fa-bed" aria-hidden="true"></i>
+                    <h6 class="fw-bold mb-1" style="font-size: 0.92rem;">Bedroom <%= b %></h6>
+                    <small class="text-secondary">
+                      <% if (totalBedsCount) { %>
+                        <%= bedroomCount === 1 ? `${totalBedsCount} ${totalBedsCount === 1 ? 'bed' : 'beds'}` : `${listing.bedrooms} bedrooms · ${totalBedsCount} beds total` %>
+                      <% } else { %>
+                        Private sleeping area
+                      <% } %>
+                    </small>
                   </div>
-                </div>
-              <% } %>
-            </div>
-          </div>
+                <% } %>
+              </div>
+            </section>
+          <% } %>
 
-          <!-- OWNER / ADMIN EDIT ACTIONS -->
-          <% if (currUser && (currUser.role === 'admin' || (listing.owner && listing.owner._id.equals(currUser._id)))) { %>
-            <div class="py-3 d-flex flex-wrap gap-2 border-bottom">
-              <a href="/listings/<%= listing._id %>/edit" class="btn btn-outline-dark btn-sm rounded-pill px-3">
+          <!-- OWNER / ADMIN MANAGEMENT ACTIONS -->
+          <% if (hasOwnerOrAdminAccess) { %>
+            <section class="wl-detail-section py-3 d-flex flex-wrap gap-2 border-bottom" aria-label="Listing management actions">
+              <a href="/listings/<%= listing._id %>/edit" class="btn btn-outline-dark btn-sm rounded-pill px-3 py-2">
                 <i class="fa-regular fa-pen-to-square me-1"></i> Edit Listing
               </a>
               <% if (currUser.role === 'admin') { %>
-                <a href="/admin/listings/<%= listing._id %>/edit" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+                <a href="/admin/listings/<%= listing._id %>/edit" class="btn btn-outline-primary btn-sm rounded-pill px-3 py-2">
                   <i class="fa-solid fa-shield-halved me-1"></i> Admin Console
                 </a>
               <% } %>
               <form action="/listings/<%= listing._id %>?_method=DELETE" method="POST" onsubmit="return confirm('Are you sure you want to delete this listing?');">
-                <button class="btn btn-outline-danger btn-sm rounded-pill px-3">
+                <button class="btn btn-outline-danger btn-sm rounded-pill px-3 py-2">
                   <i class="fa-regular fa-trash-can me-1"></i> Delete
                 </button>
               </form>
-            </div>
+            </section>
           <% } %>
 
-          <!-- REVIEWS SECTION -->
-          <div class="py-4 border-bottom" id="reviewsSection">
-            <div class="d-flex align-items-center gap-2 mb-3">
-              <h4 class="fw-bold fs-5 mb-0">Guest Reviews & Ratings</h4>
-              <span class="fw-bold fs-5 text-dark">
-                <i class="fa-solid fa-star text-warning"></i> <%= avgRating %>
-              </span>
-              <% if (reviewCount > 0) { %>
-                <span class="text-secondary">&middot; <%= reviewCount %> <%= reviewCount === 1 ? 'review' : 'reviews' %></span>
+          <!-- SECTION H: REVIEWS (Preserves all verified-stay rules and authorization) -->
+          <section class="wl-detail-section py-3 py-md-4 border-bottom" id="reviewsSection" aria-label="Guest reviews">
+            <div id="leave-review"></div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+              <h2 class="fw-bold fs-5 mb-0">Guest Reviews</h2>
+              <% if (avgRating) { %>
+                <span class="fw-bold text-dark">
+                  <i class="fa-solid fa-star text-warning"></i> <%= avgRating %>
+                </span>
+                <span class="text-secondary small">&middot; <%= reviewCount %> <%= reviewCount === 1 ? 'review' : 'reviews' %></span>
+              <% } else { %>
+                <span class="badge bg-light text-secondary border rounded-pill">No reviews yet</span>
               <% } %>
             </div>
 
             <!-- Review Eligibility / Submission Area -->
             <% if (currUser) { %>
-              <% if (listing.owner && listing.owner._id.equals(currUser._id)) { %>
-                <div class="alert alert-light border rounded-3 p-3 text-muted small">
+              <% if (isCurrentUserOwner) { %>
+                <div class="alert alert-light border rounded-3 p-3 text-muted small mb-3">
                   <i class="fa-solid fa-house-user me-1 text-danger"></i>As the host of this property, you cannot write a review for your own listing.
                 </div>
               <% } else if (typeof eligibleBooking !== 'undefined' && eligibleBooking) { %>
-                <!-- Verified Stay Review Form -->
-                <div class="card border border-success border-opacity-25 bg-success bg-opacity-10 p-4 rounded-4 mb-4 shadow-sm">
+                <div class="card border border-success border-opacity-25 bg-success bg-opacity-10 p-3 p-md-4 rounded-4 mb-4 shadow-sm">
                   <div class="d-flex align-items-center mb-3">
-                    <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center me-3" style="width: 38px; height: 38px;">
+                    <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center me-3 flex-shrink-0" style="width: 38px; height: 38px;">
                       <i class="fa-solid fa-check"></i>
                     </div>
                     <div>
@@ -364,7 +527,7 @@
 
                     <div class="mb-3">
                       <label for="comment" class="form-label fw-bold small text-dark">Your Review</label>
-                      <textarea name="review[comment]" id="comment" rows="3" class="form-control rounded-3" placeholder="Share your experience regarding cleanliness, accuracy, communication, and location..." required></textarea>
+                      <textarea name="review[comment]" id="comment" rows="3" class="form-control rounded-3" style="font-size: 16px;" placeholder="Share your experience regarding cleanliness, accuracy, communication, and location..." required></textarea>
                       <div class="invalid-feedback">Please enter your stay review.</div>
                     </div>
 
@@ -374,62 +537,65 @@
                   </form>
                 </div>
               <% } else if (typeof hasAlreadyReviewed !== 'undefined' && hasAlreadyReviewed) { %>
-                <div class="alert alert-light border rounded-3 p-3 text-secondary small">
-                  <i class="fa-solid fa-circle-check text-success me-1"></i>You have already submitted a verified review for your completed stay here. Thank you!
+                <div class="alert alert-light border rounded-3 p-3 text-secondary small mb-3">
+                  <i class="fa-solid fa-circle-check text-success me-1"></i>You have already submitted a verified review for your completed stay here.
                 </div>
               <% } else if (typeof userHasNonCompletedBooking !== 'undefined' && userHasNonCompletedBooking) { %>
-                <div class="alert alert-light border rounded-3 p-3 text-secondary small">
+                <div class="alert alert-light border rounded-3 p-3 text-secondary small mb-3">
                   <i class="fa-solid fa-clock text-warning me-1"></i>You can submit a verified review once your stay checkout date has passed.
                 </div>
               <% } else { %>
-                <div class="alert alert-light border rounded-3 p-3 text-secondary small">
-                  <i class="fa-solid fa-shield-halved text-secondary me-1"></i>Only verified guests who have booked and completed a stay at this property can leave a review.
+                <div class="alert alert-light border rounded-3 p-3 text-secondary small mb-3">
+                  <i class="fa-solid fa-shield-halved text-secondary me-1"></i>Only verified guests who have completed a stay at this property can leave a review.
                 </div>
               <% } %>
             <% } else { %>
-              <div class="alert alert-light border rounded-3 p-3 text-secondary small">
+              <div class="alert alert-light border rounded-3 p-3 text-secondary small mb-3">
                 <a href="/login" class="text-danger fw-semibold">Log in</a> after completing a stay to leave a verified review.
               </div>
             <% } %>
 
-            <!-- Existing Reviews Grid -->
+            <!-- Existing Reviews -->
             <% if (listing.reviews && listing.reviews.length > 0) { %>
-              <div class="row g-3 mt-2">
-                <% for (review of listing.reviews) { %>
+              <% const visibleReviews = listing.reviews.slice(0, 4); %>
+              <div class="row g-3 mt-1">
+                <% for (let review of visibleReviews) { %>
                   <div class="col-12 col-md-6">
                     <div class="review-card-item">
-                      <div class="d-flex justify-content-between align-items-start mb-2">
-                        <div class="d-flex align-items-center gap-2">
+                      <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                        <div class="d-flex align-items-center gap-2 min-w-0">
                           <% if (review.author && review.author.profileImage && review.author.profileImage.url) { %>
-                            <img src="<%= review.author.profileImage.url %>" class="rounded-circle border" style="width: 36px; height: 36px; object-fit: cover;" alt="">
+                            <img src="<%= review.author.profileImage.url %>" class="rounded-circle border flex-shrink-0" style="width: 36px; height: 36px; object-fit: cover;" alt="">
                           <% } else { %>
-                            <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold" style="width: 36px; height: 36px; font-size: 0.85rem; background: linear-gradient(135deg, #fe424d, #ff5a5f);">
+                            <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 36px; height: 36px; font-size: 0.85rem; background: linear-gradient(135deg, #fe424d, #ff5a5f);">
                               <%= ((review.author && review.author.fullName && review.author.fullName.trim()) ? review.author.fullName.trim()[0] : (review.author ? review.author.username : "G")[0]).toUpperCase() %>
                             </div>
                           <% } %>
-                          <div>
-                            <h6 class="mb-0 fw-bold small text-dark">
+                          <div class="min-w-0">
+                            <h6 class="mb-0 fw-bold small text-dark text-truncate">
                               <%= (review.author && review.author.fullName && review.author.fullName.trim()) ? review.author.fullName.trim() : (review.author ? review.author.username : "Legacy Guest") %>
                             </h6>
-                            <small class="text-muted" style="font-size: 0.72rem;">
-                              <%= new Date(review.createdAt).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) %>
-                            </small>
+                            <% if (review.createdAt) { %>
+                              <small class="text-muted" style="font-size: 0.72rem;">
+                                <%= new Date(review.createdAt).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) %>
+                              </small>
+                            <% } %>
                           </div>
                         </div>
 
                         <% if (review.author && review.booking && review.isVerifiedStay !== false) { %>
-                          <span class="verified-badge" title="Verified booking stay">
-                            <i class="fa-solid fa-circle-check"></i> Verified Stay
+                          <span class="verified-badge flex-shrink-0" title="Verified booking stay">
+                            <i class="fa-solid fa-circle-check"></i> Verified
                           </span>
                         <% } else { %>
-                          <span class="badge bg-light text-secondary border px-2 py-1 rounded-pill small" style="font-size: 0.72rem;" title="Legacy community review from platform launch">
-                            <i class="fa-solid fa-clock-rotate-left me-1"></i> Legacy Review
+                          <span class="badge bg-light text-secondary border px-2 py-1 rounded-pill flex-shrink-0" style="font-size: 0.7rem;" title="Legacy community review">
+                            Legacy Review
                           </span>
                         <% } %>
                       </div>
 
                       <p class="starability-result my-1" data-rating="<%= review.rating %>"></p>
-                      <p class="text-secondary small mt-1 mb-2" style="line-height: 1.5;"><%= review.comment %></p>
+                      <p class="text-secondary small mt-1 mb-2" style="line-height: 1.55;"><%= review.comment %></p>
 
                       <% if (currUser && (currUser.role === 'admin' || (review.author && review.author._id.equals(currUser._id)))) { %>
                         <form method="POST" action="/listings/<%= listing._id %>/reviews/<%= review._id %>?_method=DELETE" class="mt-2" onsubmit="return confirm('Delete this review?');">
@@ -440,28 +606,100 @@
                   </div>
                 <% } %>
               </div>
-            <% } %>
-          </div>
 
-          <!-- LOCATION & MAPBOX MAP SECTION -->
-          <div class="py-4">
-            <h4 class="fw-bold fs-5 mb-2">Where you'll be</h4>
+              <% if (listing.reviews.length > 4) { %>
+                <button type="button" class="btn btn-outline-dark rounded-3 mt-3 px-4 py-2 fw-semibold small" data-bs-toggle="modal" data-bs-target="#allReviewsModal">
+                  Show all <%= listing.reviews.length %> reviews
+                </button>
+              <% } %>
+            <% } %>
+          </section>
+
+          <!-- SECTION I: LOCATION & MAPBOX MAP (with Fullscreen Toggle + Regional Notice) -->
+          <section class="wl-detail-section py-3 py-md-4 border-bottom" aria-label="Property location and map">
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+              <h2 class="fw-bold fs-5 mb-0">Where you'll be</h2>
+              <button type="button" id="toggleFullscreenMapBtn" class="btn btn-sm btn-outline-dark rounded-pill px-3" aria-label="Expand map fullscreen">
+                <i class="fa-solid fa-expand me-1"></i><span>Fullscreen</span>
+              </button>
+            </div>
             <p class="text-secondary small mb-3">
               <i class="fa-solid fa-map-pin text-danger me-1"></i>
               <%= listing.location %>, <%= listing.country %>
             </p>
             <% if (listing.remediationReviewStatus === 'EXEMPT_REGIONAL') { %>
               <div class="alert alert-info border-0 bg-info bg-opacity-10 text-dark rounded-3 py-2 px-3 mb-3 small d-flex align-items-center gap-2">
-                <i class="fa-solid fa-circle-info text-info"></i>
+                <i class="fa-solid fa-circle-info text-info flex-shrink-0"></i>
                 <span><strong>Approximate Regional Location:</strong> This map displays the general region. Exact property directions are shared after booking confirmation.</span>
               </div>
             <% } %>
-            <div id="map" class="shadow-sm"></div>
-          </div>
+            <div id="mapWrapper" class="wl-map-wrapper">
+              <button type="button" id="exitFullscreenMapBtn" class="wl-map-exit-btn d-none" aria-label="Exit fullscreen map">
+                <i class="fa-solid fa-xmark me-1"></i>Close Map
+              </button>
+              <div id="map" class="shadow-sm"></div>
+            </div>
+          </section>
+
+          <!-- SECTION J: THINGS TO KNOW / POLICIES (Collapsible on mobile, clean grid on desktop) -->
+          <section class="wl-detail-section py-3 py-md-4" aria-label="Property policies and house rules">
+            <h2 class="fw-bold fs-5 mb-3">Things to know</h2>
+            <div class="row g-3 wl-policies-row">
+              <!-- Check-in & House Rules -->
+              <div class="col-12 col-md-4">
+                <div class="wl-policy-card">
+                  <button class="wl-policy-toggle d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#policyRules" aria-expanded="false">
+                    <span><i class="fa-solid fa-list-check me-2 text-secondary"></i>House rules &amp; Check-in</span>
+                    <i class="fa-solid fa-chevron-down wl-policy-chevron"></i>
+                  </button>
+                  <h6 class="fw-bold d-none d-md-block mb-2">House rules</h6>
+                  <div class="collapse d-md-block wl-policy-body" id="policyRules">
+                    <ul class="list-unstyled small text-secondary mb-0 d-flex flex-column gap-1">
+                      <li><i class="fa-regular fa-clock me-1"></i>Flexible check-in confirmed by host</li>
+                      <li><i class="fa-solid fa-user-group me-1"></i>Maximum <%= listing.maxGuests || 2 %> <%= (listing.maxGuests || 2) === 1 ? 'guest' : 'guests' %></li>
+                      <li><i class="fa-solid fa-house-circle-check me-1"></i>Respect property &amp; neighbourhood quiet hours</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Cancellation Policy -->
+              <div class="col-12 col-md-4">
+                <div class="wl-policy-card">
+                  <button class="wl-policy-toggle d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#policyCancel" aria-expanded="false">
+                    <span><i class="fa-solid fa-calendar-xmark me-2 text-danger"></i>Cancellation policy</span>
+                    <i class="fa-solid fa-chevron-down wl-policy-chevron"></i>
+                  </button>
+                  <h6 class="fw-bold d-none d-md-block mb-2">Cancellation policy</h6>
+                  <div class="collapse d-md-block wl-policy-body" id="policyCancel">
+                    <p class="small text-secondary mb-0">
+                      Free cancellation up to 48 hours before check-in. Manage or cancel requests anytime from <a href="/bookings" class="text-dark fw-semibold">My Trips</a>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Safety & Guest Protection -->
+              <div class="col-12 col-md-4">
+                <div class="wl-policy-card">
+                  <button class="wl-policy-toggle d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#policySafety" aria-expanded="false">
+                    <span><i class="fa-solid fa-shield-halved me-2 text-success"></i>Safety &amp; property</span>
+                    <i class="fa-solid fa-chevron-down wl-policy-chevron"></i>
+                  </button>
+                  <h6 class="fw-bold d-none d-md-block mb-2">Safety &amp; property</h6>
+                  <div class="collapse d-md-block wl-policy-body" id="policySafety">
+                    <p class="small text-secondary mb-0">
+                      Reservations require host confirmation. Exact address and check-in details are shared upon booking approval.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
 
         </div>
 
-        <!-- RIGHT COLUMN: STICKY BOOKING WIDGET (SECTION E) -->
+        <!-- RIGHT COLUMN: STICKY BOOKING WIDGET (Desktop sticky / Mobile clean card) -->
         <div class="col-12 col-lg-5">
           <div class="reservation-card" id="reservationWidget">
             <div class="d-flex justify-content-between align-items-baseline mb-3">
@@ -470,32 +708,34 @@
                 <span class="text-secondary small"> / night</span>
               </div>
               <div class="text-end small">
-                <i class="fa-solid fa-star text-warning"></i>
-                <span class="fw-bold text-dark"><%= avgRating %></span>
-                <% if (reviewCount > 0) { %>
-                  <span class="text-secondary">&middot; <%= reviewCount %> reviews</span>
+                <% if (avgRating) { %>
+                  <i class="fa-solid fa-star text-warning"></i>
+                  <span class="fw-bold text-dark"><%= avgRating %></span>
+                  <span class="text-secondary">&middot; <%= reviewCount %> <%= reviewCount === 1 ? 'review' : 'reviews' %></span>
+                <% } else { %>
+                  <span class="text-secondary">New stay</span>
                 <% } %>
               </div>
             </div>
 
-            <% if (currUser && listing.owner && listing.owner._id.equals(currUser._id)) { %>
+            <% if (isCurrentUserOwner) { %>
               <div class="alert alert-secondary text-center my-3 rounded-3 py-3" role="alert">
                 <i class="fa-solid fa-house-user me-1 text-danger"></i>
                 <span class="fw-semibold small">You are the host of this property.</span>
               </div>
             <% } else { %>
               <form action="/listings/<%= listing._id %>/bookings" method="POST" class="needs-validation" novalidate id="bookingForm">
-                
-                <!-- Boxed Date & Guest Inputs (Airbnb Style) -->
                 <div class="reservation-box-inputs">
                   <div class="row g-0">
                     <div class="col-6 border-end reservation-box-segment">
                       <label for="checkIn" class="reservation-box-label">CHECK-IN</label>
                       <input type="date" id="checkIn" name="booking[checkIn]" class="reservation-box-input" required>
+                      <div class="invalid-feedback small">Select check-in date.</div>
                     </div>
                     <div class="col-6 reservation-box-segment">
                       <label for="checkOut" class="reservation-box-label">CHECKOUT</label>
                       <input type="date" id="checkOut" name="booking[checkOut]" class="reservation-box-input" required>
+                      <div class="invalid-feedback small">Select checkout date.</div>
                     </div>
                   </div>
                   <div class="border-top reservation-box-segment">
@@ -510,7 +750,7 @@
 
                 <div class="mb-3">
                   <label for="specialRequests" class="reservation-box-label mb-1">SPECIAL REQUESTS (OPTIONAL)</label>
-                  <input type="text" name="booking[specialRequests]" id="specialRequests" class="form-control form-control-sm rounded-3" placeholder="E.g., late check-in or airport transfer">
+                  <input type="text" name="booking[specialRequests]" id="specialRequests" class="form-control rounded-3" style="font-size: 16px;" placeholder="E.g., late check-in or airport transfer">
                 </div>
 
                 <% if (!currUser) { %>
@@ -522,19 +762,19 @@
                     Reserve
                   </button>
                 <% } %>
-                
+
                 <p class="text-center text-secondary small my-3" style="font-size: 0.8rem;">
                   <i class="fa-solid fa-clock-rotate-left me-1"></i>You won't be charged yet &middot; Host approval required
                 </p>
 
-                <!-- Live Price Calculation Breakdown -->
+                <!-- Live Price Calculation Breakdown (exact existing 18% GST formula) -->
                 <div id="priceCalculation" style="display: none;" class="pt-2 border-top">
                   <div class="d-flex justify-content-between mb-2 small text-secondary">
                     <span>&#8377;<%= listing.price ? listing.price.toLocaleString("en-IN") : 0 %> &times; <span id="numNights">1</span> nights</span>
                     <span>&#8377;<span id="basePriceTotal">0</span></span>
                   </div>
                   <div class="d-flex justify-content-between mb-2 small text-secondary">
-                    <span>GST & Platform Tax (18%)</span>
+                    <span>GST &amp; Platform Tax (18%)</span>
                     <span>&#8377;<span id="taxTotal">0</span></span>
                   </div>
                   <hr class="my-2">
@@ -554,55 +794,66 @@
         </div>
 
       </div>
-
     </div>
   </div>
 </div>
 
-<!-- Mobile Sticky Bottom Booking Bar (< 992px) -->
-<div class="mobile-booking-bar d-lg-none">
-  <div>
-    <span class="fs-5 fw-bold text-dark">&#8377;<%= listing.price ? listing.price.toLocaleString("en-IN") : "0" %></span>
-    <span class="text-secondary small"> / night</span>
-    <div class="small text-secondary">
-      <i class="fa-solid fa-star text-warning" style="font-size: 11px;"></i> <%= avgRating %>
+<!-- =========================================================
+     MOBILE STICKY BOTTOM BOOKING BAR (< 992px, Safe-Area Aware)
+     Automatically hides when #reservationWidget is in view
+     ========================================================= -->
+<% if (!isCurrentUserOwner) { %>
+  <div class="mobile-booking-bar d-lg-none" id="mobileBookingBar" role="region" aria-label="Quick reservation bar">
+    <div class="min-w-0">
+      <div class="d-flex align-items-baseline gap-1">
+        <span class="fs-5 fw-bold text-dark">&#8377;<%= listing.price ? listing.price.toLocaleString("en-IN") : "0" %></span>
+        <span class="text-secondary small">/ night</span>
+      </div>
+      <div class="small text-secondary text-truncate" style="font-size: 0.75rem;">
+        <% if (avgRating) { %>
+          <i class="fa-solid fa-star text-warning" style="font-size: 11px;"></i> <%= avgRating %> &middot; <%= reviewCount %> <%= reviewCount === 1 ? 'review' : 'reviews' %>
+        <% } else { %>
+          Free cancellation &middot; 48h
+        <% } %>
+      </div>
     </div>
+    <button type="button" id="mobileReserveJumpBtn" class="btn btn-primary-custom px-4 py-2 rounded-pill shadow-sm fw-bold" style="min-height: 44px;">
+      Reserve
+    </button>
   </div>
-  <a href="#reservationWidget" class="btn btn-primary-custom px-4 py-2 rounded-pill shadow-sm">
-    Reserve
-  </a>
-</div>
+<% } %>
 
-<!-- FULLSCREEN PHOTO GALLERY LIGHTBOX MODAL -->
+<!-- =========================================================
+     MODALS: PHOTO LIGHTBOX, ALL AMENITIES, ALL REVIEWS
+     ========================================================= -->
+<!-- Fullscreen Photo Gallery Lightbox Modal -->
 <div class="modal fade" id="photoGalleryModal" tabindex="-1" aria-labelledby="photoGalleryModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-fullscreen">
     <div class="modal-content bg-dark text-white">
-      <div class="modal-header border-0 px-4 pt-4">
-        <h5 class="modal-title fw-bold" id="photoGalleryModalLabel">
-          <%= cleanTitle(listing.title) %> &middot; Photo Gallery
+      <div class="modal-header border-0 px-3 px-md-4 pt-3 pb-2">
+        <h5 class="modal-title fw-bold fs-6 text-truncate pe-2" id="photoGalleryModalLabel">
+          <%= cleanTitle(listing.title) %>
         </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close btn-close-white shadow-none" data-bs-dismiss="modal" aria-label="Close gallery" style="min-width: 44px; min-height: 44px;"></button>
       </div>
       <div class="modal-body p-0 d-flex align-items-center justify-content-center">
         <div id="galleryCarousel" class="carousel slide h-100 w-100 d-flex align-items-center justify-content-center" data-bs-ride="false" data-bs-keyboard="true" data-bs-touch="true">
-          <div class="carousel-inner text-center">
+          <div class="carousel-inner text-center px-2">
             <% allPhotos.forEach((photo, idx) => { %>
               <div class="carousel-item <%= idx === 0 ? 'active' : '' %>">
-                <img src="<%= photo %>" class="img-fluid rounded-3" style="max-height: 82vh; object-fit: contain;" alt="<%= cleanTitle(listing.title) %> - <%= idx + 1 %>" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=1200&q=80';">
-                <div class="text-center text-white-50 mt-2 small">
+                <img src="<%= photo %>" class="img-fluid rounded-3" style="max-height: 78vh; object-fit: contain;" alt="<%= cleanTitle(listing.title) %> - Photo <%= idx + 1 %>" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&w=1200&q=80';">
+                <div class="text-center text-white-50 mt-3 small">
                   Photo <%= idx + 1 %> of <%= allPhotos.length %>
                 </div>
               </div>
             <% }); %>
           </div>
           <% if (allPhotos.length > 1) { %>
-            <button class="carousel-control-prev" type="button" data-bs-target="#galleryCarousel" data-bs-slide="prev">
+            <button class="carousel-control-prev" type="button" data-bs-target="#galleryCarousel" data-bs-slide="prev" aria-label="Previous photo">
               <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-              <span class="visually-hidden">Previous</span>
             </button>
-            <button class="carousel-control-next" type="button" data-bs-target="#galleryCarousel" data-bs-slide="next">
+            <button class="carousel-control-next" type="button" data-bs-target="#galleryCarousel" data-bs-slide="next" aria-label="Next photo">
               <span class="carousel-control-next-icon" aria-hidden="true"></span>
-              <span class="visually-hidden">Next</span>
             </button>
           <% } %>
         </div>
@@ -611,145 +862,287 @@
   </div>
 </div>
 
+<!-- All Amenities Modal (only when > 6 real amenities exist) -->
+<% if (storedAmenities.length > 6) { %>
+  <div class="modal fade" id="amenitiesModal" tabindex="-1" aria-labelledby="amenitiesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content border-0 rounded-4">
+        <div class="modal-header border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold fs-6" id="amenitiesModalLabel">What this place offers (<%= storedAmenities.length %>)</h5>
+          <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close amenities"></button>
+        </div>
+        <div class="modal-body px-4 py-3">
+          <div class="d-flex flex-column gap-3">
+            <% for (let a of storedAmenities) { %>
+              <div class="d-flex align-items-center gap-3 pb-2 border-bottom">
+                <i class="fa-solid <%= getAmenityIcon(a) %> text-secondary" style="width: 22px; text-align: center;"></i>
+                <span class="fw-medium text-dark"><%= a %></span>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+<% } %>
+
+<!-- All Reviews Modal (only when > 4 real reviews exist) -->
+<% if (listing.reviews && listing.reviews.length > 4) { %>
+  <div class="modal fade" id="allReviewsModal" tabindex="-1" aria-labelledby="allReviewsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+      <div class="modal-content border-0 rounded-4">
+        <div class="modal-header border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold fs-6" id="allReviewsModalLabel">
+            <i class="fa-solid fa-star text-warning me-1"></i><%= avgRating %> &middot; <%= reviewCount %> reviews
+          </h5>
+          <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close reviews"></button>
+        </div>
+        <div class="modal-body px-4 py-3 d-flex flex-column gap-3">
+          <% for (let review of listing.reviews) { %>
+            <div class="review-card-item">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong class="small text-dark">
+                  <%= (review.author && review.author.fullName && review.author.fullName.trim()) ? review.author.fullName.trim() : (review.author ? review.author.username : "Legacy Guest") %>
+                </strong>
+                <% if (review.createdAt) { %>
+                  <small class="text-muted"><%= new Date(review.createdAt).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) %></small>
+                <% } %>
+              </div>
+              <p class="starability-result my-1" data-rating="<%= review.rating %>"></p>
+              <p class="text-secondary small mb-0"><%= review.comment %></p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+<% } %>
+
 <script src="/js/map.js"></script>
 
-<!-- Live Booking Price Calculation & Interactive Share/Save Script -->
 <script>
-  // Price Calculation Engine
-  const checkInInput = document.getElementById("checkIn");
-  const checkOutInput = document.getElementById("checkOut");
-  const pricePerNight = <%= listing.price || 0 %>;
-  const priceCalculation = document.getElementById("priceCalculation");
-  const numNightsSpan = document.getElementById("numNights");
-  const basePriceTotalSpan = document.getElementById("basePriceTotal");
-  const taxTotalSpan = document.getElementById("taxTotal");
-  const grandTotalSpan = document.getElementById("grandTotal");
-
-  if (checkInInput && checkOutInput) {
-    const today = new Date().toISOString().split("T")[0];
-    checkInInput.min = today;
-
-    checkInInput.addEventListener("change", function () {
-      checkOutInput.min = checkInInput.value;
-      calculateTotal();
-    });
-
-    checkOutInput.addEventListener("change", calculateTotal);
-  }
-
-  function calculateTotal() {
-    if (!checkInInput || !checkOutInput) return;
-    const start = new Date(checkInInput.value);
-    const end = new Date(checkOutInput.value);
-
-    if (checkInInput.value && checkOutInput.value && end > start) {
-      const diffTime = Math.abs(end - start);
-      const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (nights > 0) {
-        const base = pricePerNight * nights;
-        const tax = Math.round(base * 0.18);
-        const grand = base + tax;
-
-        if (numNightsSpan) numNightsSpan.innerText = nights;
-        if (basePriceTotalSpan) basePriceTotalSpan.innerText = base.toLocaleString("en-IN");
-        if (taxTotalSpan) taxTotalSpan.innerText = tax.toLocaleString("en-IN");
-        if (grandTotalSpan) grandTotalSpan.innerText = grand.toLocaleString("en-IN");
-
-        priceCalculation.style.display = "block";
-      }
-    } else {
-      priceCalculation.style.display = "none";
+  (function () {
+    // 1. Mobile Back Button (graceful history fallback)
+    const mobileBackBtn = document.getElementById("mobileBackBtn");
+    if (mobileBackBtn) {
+      mobileBackBtn.addEventListener("click", (e) => {
+        if (document.referrer && document.referrer.startsWith(window.location.origin) && window.history.length > 1) {
+          e.preventDefault();
+          window.history.back();
+        }
+      });
     }
-  }
 
-  // Share Action
-  const shareBtn = document.getElementById("shareBtn");
-  if (shareBtn) {
-    shareBtn.addEventListener("click", async () => {
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            title: document.title,
-            text: "Check out this accommodation on WanderLust!",
-            url: window.location.href,
+    // 2. Mobile Gallery Swipe Counter + Thumbnail Sync
+    const galleryTrack = document.getElementById("mobileGalleryTrack");
+    const counterEl = document.getElementById("mobileGalleryCounter");
+    const thumbBtns = document.querySelectorAll(".wl-mobile-thumb-btn");
+    if (galleryTrack && counterEl) {
+      function syncActiveSlide() {
+        const slideWidth = galleryTrack.clientWidth || 1;
+        const idx = Math.round(galleryTrack.scrollLeft / slideWidth);
+        counterEl.textContent = String(idx + 1);
+        thumbBtns.forEach((b, i) => b.classList.toggle("active", i === idx));
+      }
+      galleryTrack.addEventListener("scroll", () => {
+        window.requestAnimationFrame(syncActiveSlide);
+      }, { passive: true });
+
+      thumbBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const idx = parseInt(btn.getAttribute("data-thumb-index"), 10) || 0;
+          galleryTrack.scrollTo({ left: idx * galleryTrack.clientWidth, behavior: "smooth" });
+        });
+      });
+    }
+
+    // 3. Description Expand / Collapse
+    const descEl = document.getElementById("propertyDescriptionText");
+    const descToggle = document.getElementById("toggleDescriptionBtn");
+    if (descEl && descToggle) {
+      descToggle.addEventListener("click", () => {
+        const expanded = descToggle.getAttribute("aria-expanded") === "true";
+        descEl.classList.toggle("is-clamped", expanded);
+        descToggle.setAttribute("aria-expanded", expanded ? "false" : "true");
+        descToggle.innerHTML = expanded
+          ? 'Show more <i class="fa-solid fa-chevron-right ms-1" style="font-size: 0.7rem;"></i>'
+          : 'Show less <i class="fa-solid fa-chevron-up ms-1" style="font-size: 0.7rem;"></i>';
+      });
+    }
+
+    // 4. Live Booking Price Calculation (exact 18% GST formula preserved)
+    const checkInInput = document.getElementById("checkIn");
+    const checkOutInput = document.getElementById("checkOut");
+    const pricePerNight = <%= listing.price || 0 %>;
+    const priceCalculation = document.getElementById("priceCalculation");
+    const numNightsSpan = document.getElementById("numNights");
+    const basePriceTotalSpan = document.getElementById("basePriceTotal");
+    const taxTotalSpan = document.getElementById("taxTotal");
+    const grandTotalSpan = document.getElementById("grandTotal");
+
+    if (checkInInput && checkOutInput) {
+      const today = new Date().toISOString().split("T")[0];
+      checkInInput.min = today;
+      checkInInput.addEventListener("change", () => {
+        checkOutInput.min = checkInInput.value;
+        calculateTotal();
+      });
+      checkOutInput.addEventListener("change", calculateTotal);
+    }
+
+    function calculateTotal() {
+      if (!checkInInput || !checkOutInput) return;
+      const start = new Date(checkInInput.value);
+      const end = new Date(checkOutInput.value);
+      if (checkInInput.value && checkOutInput.value && end > start) {
+        const nights = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
+        if (nights > 0) {
+          const base = pricePerNight * nights;
+          const tax = Math.round(base * 0.18);
+          const grand = base + tax;
+          if (numNightsSpan) numNightsSpan.innerText = nights;
+          if (basePriceTotalSpan) basePriceTotalSpan.innerText = base.toLocaleString("en-IN");
+          if (taxTotalSpan) taxTotalSpan.innerText = tax.toLocaleString("en-IN");
+          if (grandTotalSpan) grandTotalSpan.innerText = grand.toLocaleString("en-IN");
+          if (priceCalculation) priceCalculation.style.display = "block";
+          return;
+        }
+      }
+      if (priceCalculation) priceCalculation.style.display = "none";
+    }
+
+    // 5. Sticky Mobile Booking Bar: Smooth jump + hide when reservation form is already visible
+    const mobileBookingBar = document.getElementById("mobileBookingBar");
+    const reservationWidget = document.getElementById("reservationWidget");
+    const mobileReserveJumpBtn = document.getElementById("mobileReserveJumpBtn");
+
+    if (mobileReserveJumpBtn && reservationWidget) {
+      mobileReserveJumpBtn.addEventListener("click", () => {
+        reservationWidget.scrollIntoView({ behavior: "smooth", block: "start" });
+        setTimeout(() => {
+          if (checkInInput) checkInInput.focus({ preventScroll: true });
+        }, 450);
+      });
+    }
+
+    if (mobileBookingBar && reservationWidget && "IntersectionObserver" in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            mobileBookingBar.classList.toggle("is-hidden", entry.isIntersecting);
           });
-        } catch (e) {}
-      } else {
-        navigator.clipboard.writeText(window.location.href).then(() => {
-          const original = shareBtn.innerHTML;
-          shareBtn.innerHTML = '<i class="fa-solid fa-check text-success"></i> Copied!';
-          setTimeout(() => { shareBtn.innerHTML = original; }, 2000);
-        });
-      }
+        },
+        { threshold: 0.25 }
+      );
+      observer.observe(reservationWidget);
+    }
+
+    // 6. Share Action (mobile & desktop buttons)
+    document.querySelectorAll(".share-trigger-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: document.title,
+              text: "Check out this stay on WanderLust!",
+              url: window.location.href,
+            });
+          } catch (e) {}
+        } else if (navigator.clipboard) {
+          navigator.clipboard.writeText(window.location.href).then(() => {
+            const label = btn.querySelector(".share-text");
+            if (label) {
+              const prev = label.textContent;
+              label.textContent = "Copied!";
+              setTimeout(() => { label.textContent = prev; }, 2000);
+            }
+          });
+        }
+      });
     });
-  }
 
-  // Persistent Wishlist / Save Action
-  const saveBtn = document.getElementById("saveBtn");
-  const saveHeart = document.getElementById("saveHeartIcon");
-  const saveText = document.getElementById("saveText");
-  const isUserLoggedIn = <%= currUser ? 'true' : 'false' %>;
-
-  if (saveBtn) {
-    saveBtn.addEventListener("click", async () => {
-      if (!isUserLoggedIn) {
-        window.location.href = "/login";
-        return;
-      }
-      const listingId = saveBtn.getAttribute("data-listing-id");
-      saveBtn.disabled = true;
-      try {
-        const response = await fetch(`/listings/${listingId}/wishlist`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-          },
-        });
-        const data = await response.json();
-        if (response.ok && data.success) {
-          if (data.isSaved) {
-            saveHeart.className = "fa-solid fa-heart text-danger";
-            saveText.innerText = "Saved";
-            saveBtn.title = "Remove from wishlist";
+    // 7. Persistent Wishlist / Save Action (synced across mobile + desktop buttons)
+    const isUserLoggedIn = <%= currUser ? 'true' : 'false' %>;
+    const saveButtons = document.querySelectorAll(".save-trigger-btn");
+    saveButtons.forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!isUserLoggedIn) {
+          window.location.href = "/login";
+          return;
+        }
+        const listingId = btn.getAttribute("data-listing-id");
+        saveButtons.forEach((b) => { b.disabled = true; });
+        try {
+          const response = await fetch(`/listings/${listingId}/wishlist`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          });
+          const data = await response.json();
+          if (response.ok && data.success) {
+            saveButtons.forEach((b) => {
+              const icon = b.querySelector(".save-heart-icon");
+              const text = b.querySelector(".save-text");
+              b.setAttribute("aria-pressed", data.isSaved ? "true" : "false");
+              b.title = data.isSaved ? "Remove from wishlist" : "Save to wishlist";
+              if (icon) icon.className = (data.isSaved ? "fa-solid fa-heart text-danger" : "fa-regular fa-heart") + " save-heart-icon";
+              if (text) text.textContent = data.isSaved ? "Saved" : "Save";
+            });
           } else {
-            saveHeart.className = "fa-regular fa-heart";
-            saveText.innerText = "Save";
-            saveBtn.title = "Save to wishlist";
+            alert(data.message || "Failed to update wishlist.");
           }
-        } else {
-          alert(data.message || "Failed to update wishlist.");
+        } catch (err) {
+          console.error("Wishlist error:", err);
+        } finally {
+          saveButtons.forEach((b) => { b.disabled = false; });
         }
-      } catch (err) {
-        console.error("Wishlist error:", err);
-      } finally {
-        saveBtn.disabled = false;
-      }
-    });
-  }
-
-  // Fullscreen Photo Gallery Lightbox Interactivity
-  const photoGalleryModal = document.getElementById("photoGalleryModal");
-  const galleryCarousel = document.getElementById("galleryCarousel");
-  if (photoGalleryModal && galleryCarousel) {
-    photoGalleryModal.addEventListener("show.bs.modal", function (event) {
-      const trigger = event.relatedTarget;
-      if (trigger && trigger.hasAttribute("data-slide-index")) {
-        const slideIndex = parseInt(trigger.getAttribute("data-slide-index"), 10);
-        if (!isNaN(slideIndex)) {
-          const carouselInstance = bootstrap.Carousel.getOrCreateInstance(galleryCarousel, { keyboard: true, touch: true });
-          carouselInstance.to(slideIndex);
-        }
-      }
+      });
     });
 
-    document.addEventListener("keydown", function (e) {
-      if (photoGalleryModal.classList.contains("show")) {
-        const carouselInstance = bootstrap.Carousel.getOrCreateInstance(galleryCarousel);
-        if (e.key === "ArrowLeft") carouselInstance.prev();
-        if (e.key === "ArrowRight") carouselInstance.next();
+    // 8. Fullscreen Mapbox Toggle
+    const mapWrapper = document.getElementById("mapWrapper");
+    const expandMapBtn = document.getElementById("toggleFullscreenMapBtn");
+    const exitMapBtn = document.getElementById("exitFullscreenMapBtn");
+
+    function setMapFullscreen(active) {
+      if (!mapWrapper) return;
+      mapWrapper.classList.toggle("wl-map-fullscreen", active);
+      if (exitMapBtn) exitMapBtn.classList.toggle("d-none", !active);
+      document.body.style.overflow = active ? "hidden" : "";
+      if (window.wanderlustMap && typeof window.wanderlustMap.resize === "function") {
+        setTimeout(() => window.wanderlustMap.resize(), 80);
+      }
+    }
+
+    if (expandMapBtn) expandMapBtn.addEventListener("click", () => setMapFullscreen(true));
+    if (exitMapBtn) exitMapBtn.addEventListener("click", () => setMapFullscreen(false));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && mapWrapper && mapWrapper.classList.contains("wl-map-fullscreen")) {
+        setMapFullscreen(false);
       }
     });
-  }
+
+    // 9. Fullscreen Photo Gallery Lightbox Slide Sync
+    const photoGalleryModal = document.getElementById("photoGalleryModal");
+    const galleryCarousel = document.getElementById("galleryCarousel");
+    if (photoGalleryModal && galleryCarousel) {
+      photoGalleryModal.addEventListener("show.bs.modal", (event) => {
+        const trigger = event.relatedTarget;
+        if (trigger && trigger.hasAttribute("data-slide-index")) {
+          const slideIndex = parseInt(trigger.getAttribute("data-slide-index"), 10);
+          if (!isNaN(slideIndex)) {
+            const carouselInstance = bootstrap.Carousel.getOrCreateInstance(galleryCarousel, { keyboard: true, touch: true });
+            carouselInstance.to(slideIndex);
+          }
+        }
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (photoGalleryModal.classList.contains("show")) {
+          const carouselInstance = bootstrap.Carousel.getOrCreateInstance(galleryCarousel);
+          if (e.key === "ArrowLeft") carouselInstance.prev();
+          if (e.key === "ArrowRight") carouselInstance.next();
+        }
+      });
+    }
+  })();
 </script>

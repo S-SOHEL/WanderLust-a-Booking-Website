@@ -43,6 +43,8 @@
             <td>
               <% if (u.role === 'admin') { %>
                 <span class="badge bg-danger"><i class="fa-solid fa-shield-halved me-1"></i>Administrator</span>
+              <% } else if (u.role === 'host') { %>
+                <span class="badge bg-primary"><i class="fa-solid fa-house-user me-1"></i>Property Host</span>
               <% } else { %>
                 <span class="badge bg-secondary"><i class="fa-solid fa-user me-1"></i>Standard User</span>
               <% } %>

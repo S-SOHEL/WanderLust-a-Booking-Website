@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Listing = require("./models/listing");
 const Review = require("./models/review");
 const ExpressError = require("./utils/ExpressError");
@@ -25,12 +26,24 @@ module.exports.saveRedirectUrl = (req, res, next) => {
 
 // Admin only middleware
 module.exports.isAdmin = (req, res, next) => {
+  const wantsJson =
+    req.xhr ||
+    (req.headers.accept &&
+      req.headers.accept.includes("application/json") &&
+      !req.headers.accept.includes("text/html"));
+
   if (!req.isAuthenticated()) {
+    if (wantsJson) {
+      return res.status(401).json({ success: false, message: "Administrator authentication required." });
+    }
     req.session.redirectUrl = req.originalUrl;
     req.flash("error", "Please log in with an administrator account.");
     return res.redirect("/admin/login");
   }
   if (req.user.role !== "admin") {
+    if (wantsJson) {
+      return res.status(403).json({ success: false, message: "Access denied: Administrator privileges required." });
+    }
     req.flash("error", "Access denied: Administrator privileges required.");
     return res.redirect("/listings");
   }
@@ -40,6 +53,10 @@ module.exports.isAdmin = (req, res, next) => {
 // Owner or Admin check for modifying/deleting listings
 module.exports.isOwner = async (req, res, next) => {
   const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    req.flash("error", "Listing does not exist!");
+    return res.redirect("/listings");
+  }
   const listing = await Listing.findById(id);
   if (!listing) {
     req.flash("error", "Listing does not exist!");
@@ -77,7 +94,7 @@ module.exports.validateListing = (req, res, next) => {
 
   const { error } = listingSchema.validate(req.body, { abortEarly: false });
   if (error) {
-    const errMsg = error.details.map((el) => el.message).join(" &middot; ");
+    const errMsg = error.details.map((el) => el.message).join(" · ");
     throw new ExpressError(400, errMsg);
   } else {
     next();
@@ -96,6 +113,10 @@ module.exports.validateReview = (req, res, next) => {
 
 module.exports.isReviewAuthor = async (req, res, next) => {
   const { id, reviewId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(reviewId)) {
+    req.flash("error", "Review not found!");
+    return res.redirect("/listings");
+  }
   const review = await Review.findById(reviewId);
   if (!review) {
     req.flash("error", "Review not found!");
