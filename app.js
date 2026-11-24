@@ -56,6 +56,19 @@ function resolveDatabaseConfig() {
   };
 }
 
+// Validate Evidence Vault configuration
+const { validateProductionVaultConfiguration } = require("./services/evidenceVault.js");
+try {
+  const vaultStatus = validateProductionVaultConfiguration();
+  if (vaultStatus && vaultStatus.mode === "production") {
+    console.log("Evidence Vault initialized in production mode with persistent disk.");
+  }
+} catch (vaultErr) {
+  // On Render Free tier where persistent disks or dedicated keys are not configured,
+  // log a clear notice and do not crash the public web application.
+  console.warn("Evidence Vault Notice (Free Tier Compatibility):", vaultErr.message);
+}
+
 const dbConfig = resolveDatabaseConfig();
 const dbUrl = dbConfig.url;
 
@@ -79,6 +92,12 @@ dbConnectionPromise
 
     const { reconcilePrimaryAdmin } = require("./utils/adminReconcile.js");
     reconcilePrimaryAdmin();
+
+    // Synchronize evidence ledger cache from persistent database
+    const { syncLedgerFromDatabase } = require("./utils/evidenceLedger.js");
+    syncLedgerFromDatabase().catch((syncErr) => {
+      console.warn("Evidence ledger startup sync notice:", syncErr.message);
+    });
   })
   .catch((err) => {
     console.error("DB Initial Connection Error:", err.message);

@@ -248,6 +248,19 @@ const listingSchema = new Schema({
     enum: ["PENDING_ADMIN_REVIEW", "IN_REVIEW", "RESOLVED", "EXEMPT_REGIONAL"],
     default: "RESOLVED",
   },
+  coordinateSource: {
+    type: String,
+    enum: [
+      "GEOJSON_INPUT",
+      "MAPBOX_GEOCODE",
+      "ADMIN_MANUAL_PIN",
+      "INDICATIVE_LOCALITY_PIN",
+      "ROOFTOP_ON_SITE_GPS",
+      "MUNICIPAL_TAX_RECORD",
+      "UNRESOLVED",
+    ],
+    default: "GEOJSON_INPUT",
+  },
   createdAt: {
     type: Date,
     default: Date.now,

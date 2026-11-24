@@ -1,0 +1,92 @@
+<% layout("/layouts/boilerplate") %>
+
+<% const currentTab = 'evidence'; %>
+<%- include("./adminNav.ejs") %>
+
+<div class="card border-0 shadow-sm rounded-4 p-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+    <div>
+      <h4 class="fw-bold mb-1"><i class="fa-solid fa-shield-halved text-primary me-2"></i>Secure Evidence Vault</h4>
+      <p class="text-muted small mb-0">Encrypted property verification documents and audit trails. Restricted to 2FA-authenticated administrators.</p>
+    </div>
+    <span class="badge bg-secondary rounded-pill px-3 py-2 fs-6">
+      <%= total %> <%= total === 1 ? 'Artifact' : 'Artifacts' %>
+    </span>
+  </div>
+
+  <% if (artifacts.length === 0) { %>
+    <div class="text-center py-5">
+      <i class="fa-solid fa-folder-open text-muted mb-3" style="font-size: 3rem;"></i>
+      <h5>No Evidence Artifacts Found</h5>
+      <p class="text-muted small">Upload property verification documents (deeds, agreements, rate cards, GPS surveys) through the secure vault interface.</p>
+    </div>
+  <% } else { %>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Reference ID</th>
+            <th>Dimension</th>
+            <th>Evidence Type</th>
+            <th>Original File</th>
+            <th>SHA-256 Digest</th>
+            <th>Status</th>
+            <th>Uploaded</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const art of artifacts) { %>
+            <tr>
+              <td>
+                <span class="font-monospace fw-semibold"><%= art.evidenceReferenceId %></span>
+                <% if (art.sourceReference) { %>
+                  <br><small class="text-muted">Src: <%= art.sourceReference %></small>
+                <% } %>
+              </td>
+              <td>
+                <span class="badge bg-light text-dark border"><%= art.verificationDimension %></span>
+              </td>
+              <td><%= art.evidenceType %></td>
+              <td>
+                <small class="text-muted">
+                  <%= art.fileMetadata ? art.fileMetadata.originalFilename : 'N/A' %><br>
+                  (<%= art.fileMetadata ? (art.fileMetadata.sizeBytes / 1024).toFixed(1) + ' KB' : 'N/A' %>)
+                </small>
+              </td>
+              <td>
+                <span class="font-monospace small text-muted" title="<%= art.sha256Checksum %>">
+                  <%= art.sha256Checksum ? art.sha256Checksum.slice(0, 10) + '...' : 'N/A' %>
+                </span>
+              </td>
+              <td>
+                <% if (art.verificationStatus === 'AUTHENTIC_VERIFIED') { %>
+                  <span class="badge bg-success">AUTHENTIC_VERIFIED</span>
+                <% } else if (art.verificationStatus === 'PENDING_REVIEW') { %>
+                  <span class="badge bg-warning text-dark">PENDING_REVIEW</span>
+                <% } else if (art.verificationStatus === 'REVOKED') { %>
+                  <span class="badge bg-danger">REVOKED</span>
+                <% } else { %>
+                  <span class="badge bg-secondary"><%= art.verificationStatus %></span>
+                <% } %>
+              </td>
+              <td>
+                <small class="text-muted"><%= new Date(art.createdAt).toLocaleDateString() %></small>
+              </td>
+              <td>
+                <div class="btn-group btn-group-sm">
+                  <a href="/admin/evidence/<%= art.evidenceReferenceId %>/download" class="btn btn-outline-secondary" title="Download Decrypted">
+                    <i class="fa-solid fa-download"></i>
+                  </a>
+                  <a href="/admin/evidence/<%= art.evidenceReferenceId %>/audit" class="btn btn-outline-info" title="Audit Trail">
+                    <i class="fa-solid fa-list-check"></i>
+                  </a>
+                </div>
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>

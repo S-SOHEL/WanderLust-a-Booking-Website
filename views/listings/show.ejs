@@ -502,7 +502,7 @@
                       <i class="fa-solid fa-check"></i>
                     </div>
                     <div>
-                      <h6 class="fw-bold text-success mb-0">Verified Stay Confirmed</h6>
+                      <h6 class="fw-bold text-success mb-0">Demo Stay Confirmed</h6>
                       <small class="text-secondary">You completed reservation <strong>#<%= eligibleBooking.bookingRef %></strong>. Share your stay experience.</small>
                     </div>
                   </div>
@@ -532,26 +532,26 @@
                     </div>
 
                     <button class="btn btn-primary-custom px-4 py-2 rounded-pill fw-semibold shadow-sm">
-                      Submit Verified Review
+                      Submit Demo Review
                     </button>
                   </form>
                 </div>
               <% } else if (typeof hasAlreadyReviewed !== 'undefined' && hasAlreadyReviewed) { %>
                 <div class="alert alert-light border rounded-3 p-3 text-secondary small mb-3">
-                  <i class="fa-solid fa-circle-check text-success me-1"></i>You have already submitted a verified review for your completed stay here.
+                  <i class="fa-solid fa-circle-check text-success me-1"></i>You have already submitted a demo review for this completed stay.
                 </div>
               <% } else if (typeof userHasNonCompletedBooking !== 'undefined' && userHasNonCompletedBooking) { %>
                 <div class="alert alert-light border rounded-3 p-3 text-secondary small mb-3">
-                  <i class="fa-solid fa-clock text-warning me-1"></i>You can submit a verified review once your stay checkout date has passed.
+                  <i class="fa-solid fa-clock text-warning me-1"></i>You can submit a demo review once your stay checkout date has passed.
                 </div>
               <% } else { %>
                 <div class="alert alert-light border rounded-3 p-3 text-secondary small mb-3">
-                  <i class="fa-solid fa-shield-halved text-secondary me-1"></i>Only verified guests who have completed a stay at this property can leave a review.
+                  <i class="fa-solid fa-flask text-secondary me-1"></i>Reviews are reserved for accounts with a completed demo reservation at this property.
                 </div>
               <% } %>
             <% } else { %>
               <div class="alert alert-light border rounded-3 p-3 text-secondary small mb-3">
-                <a href="/login" class="text-danger fw-semibold">Log in</a> after completing a stay to leave a verified review.
+                <a href="/login" class="text-danger fw-semibold">Log in</a> with a completed stay account to submit a demo review.
               </div>
             <% } %>
 
@@ -584,8 +584,8 @@
                         </div>
 
                         <% if (review.author && review.booking && review.isVerifiedStay !== false) { %>
-                          <span class="verified-badge flex-shrink-0" title="Verified booking stay">
-                            <i class="fa-solid fa-circle-check"></i> Verified
+                          <span class="verified-badge flex-shrink-0" title="Sample demo reservation review">
+                            <i class="fa-solid fa-flask me-1"></i>Demo Review
                           </span>
                         <% } else { %>
                           <span class="badge bg-light text-secondary border px-2 py-1 rounded-pill flex-shrink-0" style="font-size: 0.7rem;" title="Legacy community review">

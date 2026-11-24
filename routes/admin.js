@@ -5,6 +5,13 @@ const wrapAsync = require("../utils/wrapAsync.js");
 const { isAdmin, saveRedirectUrl, validateListing } = require("../middleware.js");
 const adminController = require("../controller/admin.js");
 const { upload } = require("../cloudConfig.js");
+const multer = require("multer");
+
+// Multer memory storage for private evidence documents (never saved unencrypted to disk)
+const evidenceUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit
+});
 
 // Rate limiters for admin authentication endpoints
 const adminLoginLimiter = rateLimit({
@@ -109,5 +116,22 @@ router.get("/hosts", wrapAsync(adminController.listHosts));
 // Admin Reviews Moderation
 router.get("/reviews", wrapAsync(adminController.listReviews));
 router.delete("/reviews/:id", wrapAsync(adminController.deleteReview));
+
+// =========================================================================
+// Admin Evidence Vault Management (Phase 10.7)
+// Strictly protected by router.use(isAdmin) above (requires 2FA)
+// =========================================================================
+router.get("/evidence", wrapAsync(adminController.listEvidence));
+router.post(
+  "/evidence/upload",
+  evidenceUpload.single("document"),
+  wrapAsync(adminController.uploadEvidence)
+);
+router.patch("/evidence/:id/verify", wrapAsync(adminController.verifyEvidence));
+router.patch("/evidence/:id/revoke", wrapAsync(adminController.revokeEvidence));
+router.get("/evidence/:id/download", wrapAsync(adminController.downloadEvidence));
+router.get("/evidence/:id/signed-token", wrapAsync(adminController.generateEvidenceSignedToken));
+router.get("/evidence/stream/:token", wrapAsync(adminController.streamEvidenceWithToken));
+router.get("/evidence/:id/audit", wrapAsync(adminController.getEvidenceAuditTrail));
 
 module.exports = router;

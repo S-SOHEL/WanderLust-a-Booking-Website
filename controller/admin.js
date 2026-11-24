@@ -1,8 +1,12 @@
 const path = require("path");
+const mongoose = require("mongoose");
 const Listing = require("../models/listing.js");
 const Booking = require("../models/booking.js");
 const User = require("../models/user.js");
 const Review = require("../models/review.js");
+const { EvidenceArtifact } = require("../models/evidenceArtifact.js");
+const evidenceVault = require("../services/evidenceVault.js");
+const { registerVerifiedEvidence } = require("../utils/evidenceLedger.js");
 const { autoUpdateCompletedBookings } = require("../utils/bookingLifecycle.js");
 const mbxGeocoding = require("@mapbox/mapbox-sdk/services/geocoding");
 const {
@@ -1313,4 +1317,233 @@ module.exports.updateRemediationStatus = async (req, res) => {
 
   req.flash("success", `Updated remediation review status and details for "${listing.title}".`);
   res.redirect("/admin/remediation");
+};
+
+// =========================================================================
+// Evidence Vault Management (Phase 10.7)
+// =========================================================================
+
+module.exports.listEvidence = async (req, res) => {
+  const { dimension, status, page = 1, limit = 20 } = req.query;
+  const filter = {};
+  if (dimension) filter.verificationDimension = dimension.trim().toUpperCase();
+  if (status) filter.verificationStatus = status.trim().toUpperCase();
+
+  const skip = (Math.max(1, parseInt(page, 10)) - 1) * Math.max(1, parseInt(limit, 10));
+  const total = await EvidenceArtifact.countDocuments(filter);
+  const artifacts = await EvidenceArtifact.find(filter)
+    .select("-secureStorageKey") // Never expose encrypted disk storage path/key
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(parseInt(limit, 10))
+    .lean();
+
+  if (req.xhr || req.headers.accept?.includes("application/json")) {
+    return res.json({
+      success: true,
+      total,
+      page: parseInt(page, 10),
+      totalPages: Math.ceil(total / parseInt(limit, 10)),
+      artifacts,
+    });
+  }
+
+  res.render("admin/evidence", {
+    artifacts,
+    total,
+    page: parseInt(page, 10),
+    totalPages: Math.ceil(total / parseInt(limit, 10)),
+    filter,
+  });
+};
+
+module.exports.uploadEvidence = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: "No document file uploaded." });
+  }
+
+  const { dimension, evidenceType, sourceReference } = req.body;
+  if (!dimension) {
+    return res.status(400).json({ success: false, message: "Verification dimension is required." });
+  }
+
+  try {
+    const result = await evidenceVault.storeEncryptedFile({
+      buffer: req.file.buffer,
+      originalFilename: req.file.originalname,
+      mimeType: req.file.mimetype,
+      dimension,
+      evidenceType: evidenceType || "GENERAL_AUDIT_DOCUMENT",
+      sourceReference: sourceReference || "",
+      uploadedBy: req.user._id,
+      ipAddress: req.ip,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Evidence document uploaded, encrypted, and registered in PENDING_REVIEW status.",
+      evidenceReferenceId: result.evidenceReferenceId,
+      verificationStatus: result.artifact.verificationStatus,
+      sha256Checksum: result.sha256Checksum,
+      fileMetadata: result.artifact.fileMetadata,
+    });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+module.exports.verifyEvidence = async (req, res) => {
+  const { id } = req.params;
+  const { notes } = req.body;
+
+  try {
+    const artifact = await evidenceVault.verifyEvidenceArtifact(id, req.user, notes, req.ip);
+    registerVerifiedEvidence(artifact.verificationDimension, artifact.evidenceReferenceId, {
+      evidenceType: artifact.evidenceType,
+      verificationResult: "AUTHENTIC_VERIFIED",
+      verifiedBy: req.user._id,
+      verificationDate: artifact.verificationTimestamp.toISOString(),
+      details: {
+        sourceReference: artifact.sourceReference,
+        notes: artifact.verificationNotes,
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: `Evidence artifact '${artifact.evidenceReferenceId}' verified successfully.`,
+      artifact: {
+        evidenceReferenceId: artifact.evidenceReferenceId,
+        verificationDimension: artifact.verificationDimension,
+        verificationStatus: artifact.verificationStatus,
+        verifiedBy: artifact.verifiedBy,
+        verificationTimestamp: artifact.verificationTimestamp,
+        verificationNotes: artifact.verificationNotes,
+      },
+    });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+module.exports.revokeEvidence = async (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body;
+
+  if (!reason || !reason.trim()) {
+    return res.status(400).json({ success: false, message: "Revocation reason is required." });
+  }
+
+  try {
+    const artifact = await evidenceVault.revokeEvidenceArtifact(id, req.user, reason, req.ip);
+    registerVerifiedEvidence(artifact.verificationDimension, artifact.evidenceReferenceId, {
+      evidenceType: artifact.evidenceType,
+      verificationResult: "REVOKED",
+      verifiedBy: req.user._id,
+      verificationDate: new Date().toISOString(),
+      details: {
+        reason: artifact.revocationStatus.reason,
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: `Evidence artifact '${artifact.evidenceReferenceId}' has been revoked.`,
+      artifact: {
+        evidenceReferenceId: artifact.evidenceReferenceId,
+        verificationDimension: artifact.verificationDimension,
+        verificationStatus: artifact.verificationStatus,
+        revocationStatus: artifact.revocationStatus,
+      },
+    });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+module.exports.downloadEvidence = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const { buffer, metadata, sha256Checksum } = await evidenceVault.retrieveDecryptedFile(id, {
+      requestingUser: req.user,
+      ipAddress: req.ip,
+    });
+
+    res.setHeader("Content-Type", metadata.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename="${path.basename(metadata.originalFilename)}"`);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Length", buffer.length);
+    res.setHeader("X-Evidence-Checksum", sha256Checksum);
+    return res.send(buffer);
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+module.exports.generateEvidenceSignedToken = async (req, res) => {
+  const { id } = req.params;
+  const expiresInSeconds = parseInt(req.query.expiresIn || "300", 10);
+
+  try {
+    const token = evidenceVault.generateShortLivedSignedToken(id, req.user._id.toString(), expiresInSeconds);
+    return res.json({
+      success: true,
+      token,
+      expiresInSeconds,
+      streamUrl: `/admin/evidence/stream/${token}`,
+    });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+module.exports.streamEvidenceWithToken = async (req, res) => {
+  const { token } = req.params;
+
+  const verification = evidenceVault.verifySignedToken(token);
+  if (!verification.isValid) {
+    return res.status(403).json({ success: false, message: `Access denied: ${verification.error}` });
+  }
+
+  try {
+    const { buffer, metadata, sha256Checksum } = await evidenceVault.retrieveDecryptedFile(
+      verification.payload.refId,
+      {
+        requestingUser: { _id: verification.payload.uid, role: "admin" },
+        ipAddress: req.ip,
+      }
+    );
+
+    res.setHeader("Content-Type", metadata.mimeType);
+    res.setHeader("Content-Disposition", `inline; filename="${path.basename(metadata.originalFilename)}"`);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Length", buffer.length);
+    res.setHeader("X-Evidence-Checksum", sha256Checksum);
+    return res.send(buffer);
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+module.exports.getEvidenceAuditTrail = async (req, res) => {
+  const { id } = req.params;
+  const artifact = await EvidenceArtifact.findOne({
+    $or: [{ evidenceReferenceId: id }, { _id: mongoose.Types.ObjectId.isValid(id) ? id : null }],
+  })
+    .select("evidenceReferenceId verificationDimension verificationStatus accessAuditLog revocationStatus createdAt")
+    .lean();
+
+  if (!artifact) {
+    return res.status(404).json({ success: false, message: "Evidence artifact not found." });
+  }
+
+  return res.json({
+    success: true,
+    evidenceReferenceId: artifact.evidenceReferenceId,
+    verificationDimension: artifact.verificationDimension,
+    verificationStatus: artifact.verificationStatus,
+    revocationStatus: artifact.revocationStatus,
+    accessAuditLog: artifact.accessAuditLog,
+  });
 };

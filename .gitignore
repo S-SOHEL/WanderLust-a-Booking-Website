@@ -3,5 +3,7 @@ node_modules/
 .DS_Store
 **/.DS_Store
 uploads/
+vault_storage/
 backups/
 *.log
+reports/

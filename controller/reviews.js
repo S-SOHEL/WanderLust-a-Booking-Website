@@ -82,7 +82,7 @@ module.exports.createReview = async (req, res) => {
   eligibleBooking.hasReviewed = true;
   await eligibleBooking.save();
 
-  req.flash("success", "Thank you! Your verified review has been published.");
+  req.flash("success", "Thank you! Your demo review has been published.");
   res.redirect(`/listings/${listing._id}`);
 };
 
