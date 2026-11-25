@@ -261,6 +261,10 @@ const listingSchema = new Schema({
     ],
     default: "GEOJSON_INPUT",
   },
+  migrationBatch: {
+    type: String,
+    default: null,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
