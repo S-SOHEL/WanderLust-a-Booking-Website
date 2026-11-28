@@ -1355,7 +1355,8 @@ textarea:focus-visible {
   inset: 0;
   background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(2px);
-  z-index: 1055;
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 1050;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
@@ -1371,6 +1372,11 @@ textarea:focus-visible {
   bottom: 24px;
   right: 24px;
   z-index: 1045;
+}
+
+.wl-ai-widget.is-open,
+.wl-ai-widget:has(.wl-ai-chat-card.is-open) {
+  z-index: 1060;
 }
 
 .wl-ai-trigger {
@@ -1410,6 +1416,7 @@ textarea:focus-visible {
   max-width: calc(100vw - 32px);
   height: 520px;
   max-height: calc(100vh - 120px);
+  background: #ffffff;
   border-radius: var(--radius-lg) !important;
   display: none;
   flex-direction: column;
@@ -1722,6 +1729,11 @@ body.wl-ai-sheet-open {
     bottom: calc(72px + env(safe-area-inset-bottom));
     right: 14px;
     z-index: 1036;
+  }
+
+  .wl-ai-widget.is-open,
+  .wl-ai-widget:has(.wl-ai-chat-card.is-open) {
+    z-index: 1060;
   }
 
   body.has-mobile-booking-bar .wl-ai-widget {

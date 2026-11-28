@@ -106,9 +106,12 @@ dbConnectionPromise
     }
   });
 
-// Enable trust proxy for secure cookies behind reverse proxies (e.g. Render / Heroku)
-if (isProduction) {
-  app.set("trust proxy", 1);
+// Enable trust proxy for secure cookies and accurate client IP behind reverse proxies (e.g. Render / Heroku)
+if (isProduction || process.env.TRUST_PROXY) {
+  const trustValue = process.env.TRUST_PROXY
+    ? (!isNaN(Number(process.env.TRUST_PROXY)) ? Number(process.env.TRUST_PROXY) : process.env.TRUST_PROXY)
+    : 1;
+  app.set("trust proxy", trustValue);
 }
 
 app.set("view engine", "ejs");
@@ -196,6 +199,7 @@ app.use(async (req, res, next) => {
   res.locals.info = req.flash("info");
   res.locals.currUser = req.user;
   res.locals.currentPath = req.path || "/";
+  res.locals.mapToken = process.env.MAP_TOKEN || "";
 
   // Provide pending bookings and listings count for admin notification pill
   if (req.user && req.user.role === "admin") {

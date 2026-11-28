@@ -619,6 +619,28 @@
         previewCoordinatesOnMap(lng, lat, title);
       });
     });
+
+    const remediateModalEl = document.getElementById("remediateLocationModal");
+    if (remediateModalEl) {
+      remediateModalEl.addEventListener("hidden.bs.modal", function () {
+        if (remediationMap) {
+          try { remediationMap.remove(); } catch (e) {}
+          remediationMap = null;
+          remediationMarker = null;
+        }
+      });
+    }
+
+    const previewModalEl = document.getElementById("previewMapModal");
+    if (previewModalEl) {
+      previewModalEl.addEventListener("hidden.bs.modal", function () {
+        if (previewMap) {
+          try { previewMap.remove(); } catch (e) {}
+          previewMap = null;
+          previewMarker = null;
+        }
+      });
+    }
   });
 
   function openRemediateModal(id, title, location, country, lng, lat, suggestedLng, suggestedLat, suggestedDesc) {

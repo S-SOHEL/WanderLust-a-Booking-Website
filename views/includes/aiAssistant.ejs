@@ -97,6 +97,7 @@
     const closeBtn = document.getElementById("aiCloseBtn");
     const chatCard = document.getElementById("aiChatCard");
     const backdrop = document.getElementById("aiBackdrop");
+    const widget = document.getElementById("aiWidgetContainer");
     const chatForm = document.getElementById("aiChatForm");
     const queryInput = document.getElementById("aiQueryInput");
     const messages = document.getElementById("aiMessages");
@@ -107,6 +108,7 @@
 
     function openChat() {
       chatCard.classList.add("is-open");
+      if (widget) widget.classList.add("is-open");
       if (backdrop) backdrop.classList.add("is-open");
       toggleBtn.setAttribute("aria-expanded", "true");
       if (window.innerWidth < 768) {
@@ -120,6 +122,7 @@
 
     function closeChat() {
       chatCard.classList.remove("is-open");
+      if (widget) widget.classList.remove("is-open");
       if (backdrop) backdrop.classList.remove("is-open");
       toggleBtn.setAttribute("aria-expanded", "false");
       document.body.classList.remove("wl-ai-sheet-open");
@@ -161,33 +164,56 @@
       submitQuery(text);
     });
 
+    function setSubmitting(isSubmitting) {
+      queryInput.disabled = isSubmitting;
+      const sendBtn = document.getElementById("aiSendBtn");
+      if (sendBtn) sendBtn.disabled = isSubmitting;
+      chips.forEach((c) => { c.disabled = isSubmitting; });
+      if (isSubmitting) {
+        typingIndicator.classList.remove("d-none");
+      } else {
+        typingIndicator.classList.add("d-none");
+      }
+    }
+
     function submitQuery(userText) {
       appendMessage("user", userText);
-      typingIndicator.classList.remove("d-none");
+      setSubmitting(true);
       scrollToBottom();
 
       fetch("/api/ai/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
         body: JSON.stringify({ message: userText }),
       })
-        .then((res) => {
-          if (!res.ok) {
-            return res.json().then((d) => {
-              throw new Error(d.error || "Failed to get AI response");
-            });
+        .then(async (res) => {
+          const contentType = res.headers.get("content-type") || "";
+          let data = null;
+          if (contentType.includes("application/json")) {
+            data = await res.json();
+          } else {
+            throw new Error("WanderAI concierge received an unexpected response format. Please try again.");
           }
-          return res.json();
+          if (!res.ok) {
+            throw new Error((data && data.error) || "Failed to get AI response");
+          }
+          return data;
         })
         .then((data) => {
-          typingIndicator.classList.add("d-none");
           appendAssistantReply(data);
           scrollToBottom();
         })
         .catch((err) => {
-          typingIndicator.classList.add("d-none");
           appendMessage("assistant", (err.message || "Something went wrong. Please try again."));
           scrollToBottom();
+        })
+        .finally(() => {
+          setSubmitting(false);
+          queryInput.focus();
         });
     }
 

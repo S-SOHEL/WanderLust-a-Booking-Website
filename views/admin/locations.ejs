@@ -358,6 +358,18 @@
     const saveBtn = document.getElementById("saveLocationBtn");
     const formEl = document.getElementById("fixLocationForm");
 
+    if (modalEl) {
+      modalEl.addEventListener("hidden.bs.modal", () => {
+        if (adminPickerMap) {
+          try {
+            adminPickerMap.remove();
+          } catch (e) {}
+          adminPickerMap = null;
+          adminMarker = null;
+        }
+      });
+    }
+
     document.querySelectorAll(".inspect-pin-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         currentActiveListingId = btn.getAttribute("data-id");
